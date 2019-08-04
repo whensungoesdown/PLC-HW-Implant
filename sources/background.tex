@@ -1,3 +1,17 @@
 %! TEX root = 'main.tex'
-\section{Background}
+\section{Background and Adversary Model}
 \label{sec:background}
+
+In this section, we provide basic knowledge for the rest for the rest of the paper. We provide detailed information about industrial control systems(ICS) and programmable logic controllers(PLC), and we define the adversary model we will introduce throughout the paper.
+
+\subsection{Background}
+
+
+
+
+
+\subsection{Adversary Model}
+In general, to compromise an industrial control system, there are three main vectors. Software exploitation, human manually operation and hardware manipulation. Of hardware manipulation, chip design modification is most stealth, but it's hard due to the fact that there are only few microchip fabrication plant can produce certain type of microcontroller or SoC. However, lower in the supply chain where the PLC is manufactured and assembled, it's more likely the attacker compromises the manufacturing process to create backdoors. Detecting a supply chain compromise is a difficult and costly endeavor. This requires strict security and quality control throughout every phase of the supply chain even including shipping.
+
+
+JTAG is is an industry standard for verifying designs and testing printed circuit boards after manufacture. Among various components and buses on a PCB board, JTAG is low speed and it can reach a wide range of the system. Multiple chips can be daisy chained together. This type of setup allows one set of JTAG interface to control multiple devices.
