@@ -6,6 +6,22 @@ In this section, we provide basic knowledge for the rest for the rest of the pap
 
 \subsection{Background}
 
+An ICS is a distributed system which is composed of physical components, like sensors and actuators, which interact with the physical system (e.g., power grid) and cyber components(e.g., cyber-networks and servers). Although ICS are largely self-contained, interfaces exist through which external components can interact with the systems. For instance, a human operator can monitor the systems state and influence it through a human-machine interface(HMI). Most PLCS are connected to the ICS via an Ethernet network, and hence, often indirectly connected to the Internet. It is also quite common that PLCs are directly connected to the Internet. 
+
+Centralized operation and maintenance is an essential feature of ICS. An operator can program and monitor PLCs and the applications running on them remotely, i.e., retrieve the status of a PLC and re-program it over the network. The information which can be retrieved from the PLC contains, among others, the control logic application on the PLC. All applications, including their source code and further meta information, can be loaded from a PLC.
+
+Essentially, ICS is equivalent to a large computer networks. Two points make it special. First, instead of personal computers or enterprise servers, ICS usually controls vital infrastructures of nation, such as power grid. The recent incident of new york and south American cities blackout shows the importance to the stability of societies.
+
+Second, ICS use special purposed devices such as Programmable Logic Controllers(PLC). Unlike PC and smart phones  which mostly adopt x86 and ARM architecture with well defined peripheral device protocols and well-know operating systems such as Windows and Linux/Unix, each PLC manufacture may use different architecture, some of them may even be proprietary design, with unknown system bus and peripheral devices. Moreover, their is no unified operating system for different brand PLCs, there programming languages are also different.
+
+
+\subsubsection{Programmable Logic Controllers(PLC).} Programmable logic controller are cyber-physical systems that are used to control industrial appliances. PLCs have input and output modules to interact with the physical world. They can translate physical inputs, mostly current on a wire, into digital values and vice versa. Connected to physical appliances such as sensors and actuators, PLCs can convert sensor readings into digital values, process the readings with the build-in computing unit, and forward the outputs to the physical world. The logical behavior of PLCs, i.e., the processing of the input data, is programmable.
+
+Such protocol loops can be either local, i.e., the inputs and outputs are handled by a single PLC, or distributed, i.e., the inputs are read by one PLC and forwarded over the network to another PLC.
+
+The two main software components of a PLC, control logic and firmware.
+
+
 
 
 
