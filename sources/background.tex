@@ -44,3 +44,12 @@ We prototyped a device which is small enough to mount on the PCB board of a PLC.
 
 We also propose a more stealthy way detailed in Further Work section.
 
+
+
+\subsection{JTAG}
+JTAG interface named after Joint Test Action Group, is a industry standard port for IC testing. This is necessary because of the growing complexity of integrated circuits makes the design verification tends to be more and more difficult.
+
+The JTAG interface use very few pins (TDI, TDO, TMS and TCK) to talk to test access port(TAP) which implements a state machine and a set of registers to further connect more circuit components, from which it can access memory bus and more debug facilities. The two major register of TAP are Instruction Register(IR) and Data Register(DR). They work in a serial mode in which they accepts/sends out bit stream through the four former mentioned JTAG pins. The IR register contains the command to be executed, DR contains shift-in data or the command's result. JTAG is just a way to read/write data to different registers/components that connected to the system. It's early applications targeted board level testing, diagnosis and fault isolation. Nowadays JTAG is used as the primary way of accessing sub-blocks of integrated circuits, making it the most common way to debug embedded system. In this project, the PLC we work with use ARM cortex-m3 based microcontroller, ARM Cortex-M series  contains CoreSight Technology which is a power debug model. The CoreSight can't be operated through either JTAG or SWD(Serial Wire Debug) interface.
+
+On ARM Cortex-M series microcontroller has build on a Debug Access Port(DAP) which is comprised of a Debug Port(DP) and several Access Ports(AP). DP manages the connection to an external debugger. APs access on-chip system resources. DAPBUS connects the DP to one or more APs. The APs provide non-invasive access to APB bus though APB-AP,  and to other legacy-configured debug components using JTAG-AP. In our project, we access system memory and memory-mapped IO through AHB-AP. Because of this comprehensive debug ability that ARM provide, our hardware implant can fully control the system by connects to the JTAG pins.
+
