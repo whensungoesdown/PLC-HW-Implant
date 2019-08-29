@@ -1,0 +1,20 @@
+%! TEX root = 'main.tex'
+\section{Related Work}
+\label{sec:relatedwork}
+
+There are recent works~\cite{garcia2017hey}~\cite{basnight2013firmware}~\cite{blanco2012one}~\cite{cui2013firmware} in firmware modification attacks on network card, PLC and other embedded systems.
+
+HARVEY, a PLC rootkit that implements a physics-aware man-in-the-middle attack against cyber-physical control system. It modifies the key function in the PLC's firmware in order to damage the underlying physical system, while providing the system operators with the legit feedback signals.
+
+In~\cite{blanco2012one}, through the analysis of baseband firmware and related open source projects, it can control the baseband chip and turn on the monitor mode by modifying the firmware.
+
+Defense mechanism have been proposed can be divided into two categories. To prevent, vendors implement verification mechanism in order to only accept legit firmware image. In this case, any malicious firmware needs to bypass the verification first. The verification mechanism could be a simple hash of the image, for instance, the CRC32 value all together sums to 0. This type can be considered security by obscure, once the attacker knows about the mechanism, it's not difficult to break. More sophisticated way is to use digital signature, which is not practical to bypass. 
+
+There are research works~\cite{li2011viper}~\cite{wang2015confirm}~\cite{li2011viper} that detecting firmware modification attacks. Li et al. propose using software-based attestation to verify the firmware of the Apple keyboard which runs an microcontroller. VIPER~\cite{li2011viper} also proposed software-only attestation protocol to verify the firmware of a network card.
+
+ConFirm~\cite{wang2015confirm}, a low-cost technique to detect malicious modifications in the firmware of embedded control systems by measuring the number of low-level hardware events that occur during the execution of the firmware.
+
+Compared to on a computer, it's more difficult to verify that a file(firmware image) has been tampered with on an embedded system or PLC, but this is a very effective way to detect firmware modification attacks.
+
+
+Since the application of the above two methods, we need a new approach to evade detection. The hardware implant can be used to achieve the same or even more powerful functions without changing any firmware.
