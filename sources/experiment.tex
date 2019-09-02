@@ -1,0 +1,83 @@
+%! TEX root = 'main.tex'
+\section{Experiment}
+\label{sec:experiment}
+
+\subsection{Reverse Engineering}
+We did reverse engineering to this PLC in order to better understand it, so that it can be completely controlled. This reverse engineering consists of two parts. The hardware part is to distinguish the modules and how they are connected. The software part is mainly the disassembly of the firmware.
+
+\subsubsection{Backplanes}
+
+A PLC such as Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370, usually contains multiple PCB module boards, called backplanes, as shown in~\autoref{fig:modules}.
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/modules}
+	\centering
+	\caption{Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370 PLC. A: Power supply module  B: Communication module  C: Real-time module  D: (16) DC Digital Outputs \& (16) DC Digital Inputs  E: LED indicator module}
+	\label{fig:modules}
+\end{figure}
+
+For the PLC we use, it contains one communication module, one real-time controller module, DC digital input/output module and the power supply module. They are interconnected through a proprietary interface. The communication module itself is a complete embedded system that is responsible for communicating with external systems such as SCADA trough Ethernet. It may also host a website for statistics and management.
+
+The real-time controller module also is a complete embedded system. It uses a real-time operating system to handle industrial logic signals though input/output module.
+
+In this paper, because our main purpose is to control the physical system, our focus is on the real-time controller module.
+
+
+\subsubsection{Microcontroller}
+
+The real-time controller module uses the TI Stellaris LM3S2793 SoC. It has a ARM Cortex-M3 processor core operates at 80 MHz. It contains up to 67 GPIOs depending on configuration, JTAG and ARM Serial Wire Debug (SWD) interfaces, two I2C modules and so on.
+
+\subsubsection{Internal Memory}The Stellaris LM3S2793 microcontroller~\cite{lm3s2793} comes with 64 KB of bit-banded SRAM, internal ROM, and 128 KB of Flash memory. The internal ROM is located at address 0x1000000 of the device memory map. It contains the following components:
+
+\begin{itemize}
+	\item Stellaris Boot Loader and vector table
+	\item Stellaris Peripheral Driver Library (DriverLib) release for product-specific peripherals and interfaces
+	\item Advanced Encryption Standard (AES) cryptography tables
+	\item Cyclic Redundancy Check (CRC) error detection funtionalify
+\end{itemize}
+
+The ROM can be seen as a function library similar to the PC BIOS. Instead of calling through system interrupt, it's called by a vector table. We will talk about it in more detail later.
+
+The LM3S2793 microcontroller provides 64 KB of single-cycle on-chip SRAM. The internal SRAM is located at offset 0x20000000 of the device memory map.
+
+The 128 KB flash memory stores the user application code. This part is what we need to do reverse engineering. The first step is to find out where the code is and the entry point.
+
+\begin{center}
+	\begin{table}
+		\begin{tabular}{|p{1.6cm} p{1.6cm} p{4cm}|} 
+			\hline
+			Start & End & Description \\ [0.5ex] 
+			\hline\hline
+			0x00000000 & 0x0001FFFF & On-chip Flash \\ 
+			\hline
+			0x00020000 & 0x00FFFFFF & Reserved \\
+			\hline
+			0x01000000 & 0x1FFFFFFF & Reserved for ROM \\
+			\hline
+			0x20000000 & 0x2000FFFF & Bit-banded on-chip SRAM \\
+			\hline
+			0x20010000 & 0x21FFFFFF & Reserved \\
+			\hline
+			0x22000000 & 0x221FFFFF & Bit-band alias of bit-banded on-chip SRAM starting at 0x20000000 \\
+			\hline
+			0x22200000 & 0x3FFFFFFF & Reserved \\
+			\hline
+			... & ... &   \\ [1ex] 
+			\hline
+		\end{tabular}
+		\caption{LM3S2793 Memory Map}
+		\label{tab:memorymap}
+	\end{table}
+\end{center}
+
+\autoref{tab:memorymap} shows part of the memory map of LM3S2793, it's easy to see where the flash memory is. It's from 0x00000000 to 0x0001FFFF, 128 KB. But we also have to be aware that this mapping may change because of the boot loader.
+
+The Stellaris Boot Loader is used to download code to the Flash memory of a device without the use of a debug interface. It means that when the microcontroller is rest, the user has the opportunity to direct the microcontroller to execute the ROM boot loader or the application in flash memory by using any GPIO signal in GPIO ports as configured in the Boot Configuration (BOOTCFG) register.
+
+At reset, the ROM is mapped over the flash memory so that the ROM boot sequence is always executed. After that, depends on the BOOTCFG's setting and the signal from certain GPIO port, the ROM is mapped to 0x01xxxxxx and flash memory is mapped to the address 0x00000000. Then, the data at address 0x00000004 is read. If the data is 0xFFFFFFFF, which means the flash is not programmed, the ROM will be mapped back to address 0x00000000 again and execution continues out of the ROM boot loader. If it's not 0xFFFFFFFF, the data at address 0x00000000 will be used as the stack address and it will be loaded into stack pointer (SP). The program counter (PC) is loaded from address 0x00000004. That's the entry point for user application. 
+
+In our device, the SP value is 0x20000B48, and the PC value is 0x000000E3. Since 0xE3 is an odd number, which violate the memory alignment of ARM architecture, the least significant bit indicates that from address 0xE2, the instruction are in Thumb format.
+
+We dumped the flash memory to a file, and start to disassemble at address 0xE2.
+
+We also noticed that the SRAM which starts from 0x20000000, replicate the flash memory. We are not sure the meaning of doing that. One good reason is that the LM3S2793 faster than the flash memory. At system clock speeds of 50 MHz and below, the flash memory is read in a single cycle. LM3S2793 operates at 80 MHz. But the flash memory has a prefetch buffer that is automatically used when the CPU frequency is greater than 50 MHz. In this mode, the flash memory operates at half of the system clock. The prefetch buffer fetches two 32-bit words per clock allowing instructions to be fetched with no wait states while code is executing linearly.
