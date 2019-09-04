@@ -74,10 +74,81 @@ The 128 KB flash memory stores the user application code. This part is what we n
 
 The Stellaris Boot Loader is used to download code to the Flash memory of a device without the use of a debug interface. It means that when the microcontroller is rest, the user has the opportunity to direct the microcontroller to execute the ROM boot loader or the application in flash memory by using any GPIO signal in GPIO ports as configured in the Boot Configuration (BOOTCFG) register.
 
-At reset, the ROM is mapped over the flash memory so that the ROM boot sequence is always executed. After that, depends on the BOOTCFG's setting and the signal from certain GPIO port, the ROM is mapped to 0x01xxxxxx and flash memory is mapped to the address 0x00000000. Then, the data at address 0x00000004 is read. If the data is 0xFFFFFFFF, which means the flash is not programmed, the ROM will be mapped back to address 0x00000000 again and execution continues out of the ROM boot loader. If it's not 0xFFFFFFFF, the data at address 0x00000000 will be used as the stack address and it will be loaded into stack pointer (SP). The program counter (PC) is loaded from address 0x00000004. That's the entry point for user application. 
 
-In our device, the SP value is 0x20000B48, and the PC value is 0x000000E3. Since 0xE3 is an odd number, which violate the memory alignment of ARM architecture, the least significant bit indicates that from address 0xE2, the instruction are in Thumb format.
+\subsubsection{Entry Point}
+At reset, the ROM is mapped over the flash memory so that the ROM boot sequence is always executed. After that, depends on the BOOTCFG's setting and the signal from certain GPIO port, the ROM is mapped to 0x01xxxxxx and flash memory is mapped to the address 0x00000000. Then, the data at address 0x00000004 is read. If the data is 0xFFFFFFFF, which means the flash is not programmed, the ROM will be mapped back to address 0x00000000 again and execution continues out of the ROM boot loader. If it's not 0xFFFFFFFF, the data at address 0x00000000 will be used as the stack address and it will be loaded into stack pointer (SP). The program counter (PC) is loaded from address 0x00000004. That's the entry point for user application. This is also confirms to ARM's definition of vector table. ARM architecture expects the interrupt vector table at the start of the memory. It contains the reset value of the stack pointer, and the start address, also called exception vectors, for all exception handlers.  
+
+In our device, the SP value is 0x20000B48, and the PC value is 0x000000E3. Since 0xE3 is an odd number, which violate the memory alignment of ARM architecture, the least significant bit indicates that from address 0xE2, the instruction are in Thumb code.
 
 We dumped the flash memory to a file, and start to disassemble at address 0xE2.
 
 We also noticed that the SRAM which starts from 0x20000000, replicate the flash memory. We are not sure the meaning of doing that. One good reason is that the LM3S2793 faster than the flash memory. At system clock speeds of 50 MHz and below, the flash memory is read in a single cycle. LM3S2793 operates at 80 MHz. But the flash memory has a prefetch buffer that is automatically used when the CPU frequency is greater than 50 MHz. In this mode, the flash memory operates at half of the system clock. The prefetch buffer fetches two 32-bit words per clock allowing instructions to be fetched with no wait states while code is executing linearly.
+
+
+
+
+\subsubsection{Stellarisware ROM Library}
+The ROM library~\cite{lm3s2793rom} use tables to access function entry points for the APIs that are provided in the ROM. The tables are split into two levels. The main table contains one pointer per peripheral which points to a secondary table that contains one pointer per API that is associated with that peripheral. The main table is located at 0x01000010 right after the Cortex-M3 vector table in the ROM. \autoref{tab:romtable} shows a portion of the API table and ~\autoref{tab:gpiotable} shows part of the secondary ROM\_GPIOTABLE which contains the entry points of all the GPIO related functions.
+
+\begin{center}
+	\begin{table}
+		\begin{tabular}{|p{7.2cm}|} 
+			\hline
+			ROM\_APITABLE (0x1000010) \\ [0.5ex] 
+			\hline
+			[0] = ROM\_VERSION \\
+			\hline
+			[1] = pointer to ROM\_UARTTABLE \\
+			\hline
+			[2] = pointer to ROM\_SSITABLE \\
+			\hline
+			[3] = pointer to ROM\_I2CTABLE \\
+			\hline
+			[4] = pointer to ROM\_GPIOTABLE \\
+			\hline
+			[5] = pointer to ROM\_ADCTABLE \\
+			\hline
+			... \\ 
+			\hline
+		\end{tabular}
+		\caption{LM3S2793 ROM API Table}
+		\label{tab:romtable}
+	\end{table}
+\end{center}
+
+\begin{center}
+	\begin{table}
+		\begin{tabular}{|p{7.2cm}|} 
+			\hline
+			ROM\_GPIOTABLE \\ [0.5ex] 
+			\hline
+			[0] = function ROM\_GPIOPinWrite \\
+			\hline
+			[1] = function ROM\_GPIODirModeSet \\
+			\hline
+			[2] = function ROM\_GPIODirModeGet \\
+			\hline
+			[3] = function ROM\_GPIOIntTypeSet \\
+			\hline
+			... \\ 
+			\hline
+		\end{tabular}
+		\caption{GPIO API Table}
+		\label{tab:gpiotable}
+	\end{table}
+\end{center}
+
+
+The following is an example of calling function ROM\_GPIOPinRead() from the flash memory disassembly. API table indexing 0x1000010 + 0x10 (ROM\_APITABLE[4]) is optimized to 0x1000020 which points to the GPIO API table. [R2,\#0x2C] represents ROM\_GPIOTABLE[11] which is ROM\_GPIOPinRead(). So the code that calling the ROM library is very helpful to reveal the intent of the program.
+
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/romapiexample}
+	\centering
+	\caption{Example of calling ROM library API}
+	\label{fig:romapiexample}
+\end{figure}
+
+
+
+\subsubsection{Debuging}
