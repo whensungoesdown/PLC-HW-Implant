@@ -151,4 +151,18 @@ The following is an example of calling function ROM\_GPIOPinRead() from the flas
 
 
 
-\subsubsection{Debuging}
+\subsubsection{Debugging}
+
+Debugging plays an important role in the reverse engineering process. To debug an ARM core, we need the JTAG interface and a hardware debugger. In this project, we use SEGGER J-Link which contains a GDB-Server. The J-Link GDB Server is a remote server for the GDB which allows to use J-Link with GDB or any tool chain which uses GDB as debugging interface. We also need GNU Embedded Toolchain for ARM~\cite{gnutoolchainarm}, meaning, the ARM version of gdb client.
+
+As mentioned earlier, the stack pointer and program counter are located at address 0x00000000 and 0x00000004 which is the reset vector. To debug the target ARM core, we use a GDB initialization script, as shown below, which contains GDB commands to automatically execute during GDB startup to make the debugger stopping at the beginning of the reset vector.  
+
+\begin{lstlisting}[basicstyle=\small, caption={GDB stript file .gdbinit}, captionpos=b]
+target remote localhost:2331
+monitor speed 1000
+monitor reg r13 = (0x00000000)
+monitor reg pc = (0x00000004)
+monitor flash breakpoints = 1
+\end{lstlisting}
+
+At this point, if you enter the gdb command "continue", the ARM core will continue to execute and then run ladder logic normally. But whenever you interrupt the core with hitting "Ctrl - C", the red LED of the PLC will light up and report an IO error. 
