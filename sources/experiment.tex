@@ -166,3 +166,38 @@ monitor flash breakpoints = 1
 \end{lstlisting}
 
 At this point, if you enter the gdb command "continue", the ARM core will continue to execute and then run ladder logic normally. But whenever you interrupt the core with hitting "Ctrl - C", the red LED of the PLC will light up and report an IO error. 
+
+
+\subsubsection{more reverse engineering topics ....}
+
+
+\subsection{GPIO}
+The most important way for PLC to control the physical system is through the input and output pins on the IO module. These pins correspond directly to the GPIO on the real-time microcontroller. So, knowing how to control GPIO and having knowledge of the physical system is equivalent to being able to directly control the physical system.
+
+The way to control GPIO is different on different microcontroller. Luckily it's well documented for LM3S2793 microcontroller~\cite{lm3s2793}. 
+
+There are up to 67 GPIOs, depending on configuration. They can be used individually as GPIO pins or one of several peripheral functions by pin muxing.
+
+There are multiple registers associated with each GPIO port. For instance, GPIO port mode register, GPIO port data register, GPIO bit set/reset register and so on. Those registers are used to configure and hold the data for the GPIO port. Usually when we configure the registers, we use the "Read Modify Write" (RMW) where we need to first read the register, and then, depending on the value, a new value will be write back to the same register. But most of the microcontroller doesn't have an atomic RMW operation. If multiple pieces of code are running at the same time, especially on multiprocessor systems, it will cause synchronization problems (Race condition). To address the issue, some GPIO module has Bit Set/Reset Register (BSRR) or Bit Reset Register (BRR). For example, the BSRR could be a 32-bit register where the lower 16 bits are used to set any of the 16 pins of a particular GPIO port, and the higher 16 bits are used to clear the same 16 pins.
+
+The LM3S2793 uses a different approach. The GPIO ports allow for the modification of individual bits in the GPIO Data (GPIODATA) register by using bits [9:2] of the address bus as a mask. In this manner, software drivers can modify individual GPIO pins in a single instruction without affecting the state of the other pins. This explains why a GPIO port requires a large address space, because to implement this method, the GPIODATA register covers 256 locations. 
+
+During a write, if the address bit associated with that data bit is set, the value of the GPIODATA register is altered. If the address bit is cleared, the data bit is left unchanged. For example, writing a value of 0xEB to the address GPIODATA + 0x098 has the result shown in~\autoref{fig:gpiowrite}, where u indicates that data is unchanged by the write. 
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/gpiowrite}
+	\centering
+	\caption{GPIODATA Write Example~\cite{lm3s2793}}
+	\label{fig:gpiowrite}
+\end{figure}
+
+During a read, if the address bit associated with the data bit is set, the value is read. If the address bit associated with data bit is cleared, the data bit is read as a zero, regardless of its actual value. For example, the result for reading address GPIODATA + 0x0C4 is shown in~\autoref{fig:gpioread}.
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/gpioread}
+	\centering
+	\caption{GPIODATA Read Example~\cite{lm3s2793}}
+	\label{fig:gpioread}
+\end{figure}
+
+\subsection{Backplane Interconnection}
