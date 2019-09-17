@@ -82,7 +82,9 @@ In our device, the SP value is 0x20000B48, and the PC value is 0x000000E3. Since
 
 We dumped the flash memory to a file, and start to disassemble at address 0xE2.
 
-We also noticed that the SRAM which starts from 0x20000000, replicate the flash memory. We are not sure the meaning of doing that. One good reason is that the LM3S2793 faster than the flash memory. At system clock speeds of 50 MHz and below, the flash memory is read in a single cycle. LM3S2793 operates at 80 MHz. But the flash memory has a prefetch buffer that is automatically used when the CPU frequency is greater than 50 MHz. In this mode, the flash memory operates at half of the system clock. The prefetch buffer fetches two 32-bit words per clock allowing instructions to be fetched with no wait states while code is executing linearly.
+We also noticed that the SRAM which starts from 0x20000000, replicate the flash memory. This is because SRAM runs much faster than the flash. At system clock speeds of 50 MHz and below, the flash memory is read in a single cycle. LM3S2793 operates at 80 MHz. But the flash memory has a prefetch buffer that is automatically used when the CPU frequency is greater than 50 MHz. In this mode, the flash memory operates at half of the system clock. The prefetch buffer fetches two 32-bit words per clock allowing instructions to be fetched with no wait states while code is executing linearly.
+
+When the system boot, the first thing it does is to copy part of flash to SRAM, specifically, copying 0x0 - 0xA88 to 0x20000000 - 0x20000A88. Next, clears 0x20000A88 - 0x20000F54 to 0. Then it sets up the Vector Table Offset Register which contains the location of the vector table, indicating either it's in flash or SRAM and the offset. After these steps, the code jumps back to SRAM to continue execution.
 
 
 
@@ -201,3 +203,12 @@ During a read, if the address bit associated with the data bit is set, the value
 \end{figure}
 
 \subsection{Backplane Interconnection}
+
+
+\subsection{Attacks}
+After controlling JTAG, there are many ways to attack. One of the attacks is to change the IO output without changing the panel LED indicator and monitoring system. Through reverse engineering, we know that GPIO port E (0x4005C000), GPIO port F (0x4005D000) corresponds to IO inputs, and GPIO port G (0x4005E000), GPIO port H (0x4005F000) corresponds to IO outputs. Each GPIO port contains 8 effective bits, corresponding to each pin on the panel. As mentioned earlier, we can change the GPIO output by changing the GPIO Data (GPIODATA) register. For instance, to modify all the pins on GPIO port G, write a byte to address 0x4005E3FC. For each bit in the byte, zero means output field power voltage, 1 means output low voltage (8v).
+
+The scan cycle is the cycle of which the PLC gathers the inputs, runs the ladder logic and then updates the outputs. Scan cycles repeat in milliseconds. It will update the outputs based on the ladder logic, here ladder logic refers to variables in memory. With some reverse engineering work, we can modify those variables accordingly to get the IO output we want. We also found an particular variable that controls the update of IO output. For example, this variable in our case is located at 0x20002D0B, it varies due to different firmware version. When this variable is set to 0, the IO module stops at the current state. So now we can change the output arbitrarily. After changing this variable back to the original value, everything is restored to the state corresponding to the ladder logic. So we have a time window of arbitrary length for malicious output. 
+
+
+
