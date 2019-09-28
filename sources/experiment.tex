@@ -162,6 +162,7 @@ As mentioned earlier, the stack pointer and program counter are located at addre
 \begin{lstlisting}[basicstyle=\small, caption={GDB stript file .gdbinit}, captionpos=b]
 target remote localhost:2331
 monitor speed 1000
+monitor reset
 monitor reg r13 = (0x00000000)
 monitor reg pc = (0x00000004)
 monitor flash breakpoints = 1
@@ -172,6 +173,7 @@ At this point, if you enter the gdb command "continue", the ARM core will contin
 
 \subsubsection{more reverse engineering topics ....}
 
+Through reverse engineering, it shows that the Vector Table Offset Register is first at address 0x0, then switch to address 0x20000000, after receiving the ladder logic code, finally set to address 0x40000. 
 
 \subsection{GPIO}
 The most important way for PLC to control the physical system is through the input and output pins on the IO module. These pins correspond directly to the GPIO on the real-time microcontroller. So, knowing how to control GPIO and having knowledge of the physical system is equivalent to being able to directly control the physical system.
@@ -202,7 +204,6 @@ During a read, if the address bit associated with the data bit is set, the value
 	\label{fig:gpioread}
 \end{figure}
 
-\subsection{Backplane Interconnection}
 
 
 \subsection{Attacks}
@@ -212,3 +213,19 @@ The scan cycle is the cycle of which the PLC gathers the inputs, runs the ladder
 
 
 
+\subsection{Onboard Components Interconnection}
+Knowing how the real-time controller controls IO module, how to attack attack through the JTAG interface, we hope to learn more about the other chips on the board and how the different backplanes are related. We found that no other chips are daisy chained together with LM3S2793 via JTAG, so we need more reverse engineering work.
+
+\subsubsection{AT45DB021E SPI Serial Flash Memory}
+Right next to the LM3S2793 microcontroller, there is a flash chip, "adesto 45DB021E SHN" printed on it. It's a 2-Mbit SPI serial flash memory chip. According to the pin diagram of the LM3S2793 and AT45DB021E and the multimeter connectivity test, we found that the flash chip is connected to the SSI0 (Synchronous Serial Interface) of LM3S2793 as shown in~\autoref{fig:ssi0}.
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/ssi0}
+	\centering
+	\caption{LM3S2793 SSI0 Pins Connect to AT45DB21E SPI Serial Flash Memory}
+	\label{fig:ssi0}
+\end{figure}
+
+Also, at the beginning of the firmware initialization, right after copy part of the inner flash to RAM as we mentioned earlier, by associating GPIO port A and SSI0, the firmware first read a byte from the flash chip (from the first byte of page 128). This byte is stored at address 0x20000F50. If the value of this byte is 0x55 or 0xAA, the firmware will skip the checksum of 0x4000 to 0x1FFFC. 
+
+The checksum is very simple. From 0x4000 to 0x1FFFC, accumulate each byte, and the final result is compared with the byte at 0x1FFFF. If they are equal, the check passes.
