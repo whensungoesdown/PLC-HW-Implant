@@ -241,9 +241,9 @@ There are four rows of LED lights on the front panel, and each two rows (8 LEDs 
 
 There are two 24-pin chips also mounted on module E. Top-side marking says "PD9535". They are "Remote 16-bit I2C and SMBus, Low-Power I/O Expander"~\cite{pd9535}. It provides general-purpose remote I/O expansion for most microcontroller families via the I2C interface, SCL (serial clock) and SDA (serial data). Combined with the reverse engineering of the firmware, it can be determined that the two chips are connected to the microcontroller on the module B through I2C protocol. I2C is a serial protocol for two-wire interface to connect low-speed devices like microcontroller, EEPROM, A/D and D/A converters, I/O interface and other similar peripherals in the embedded systems~\cite{semiconductors2000i2c}.
 
-The module C and E are connected by module D through a proprietary interface. LM3S2793 uses two pins of GPIO Port B (PB2 and PB3) for peripheral I2C0 as the SCL and SDA. PB2/I2C0SCL and PB3/I2C0SDA correspond to pin 5 and pin 6 in of the  proprietary interface, as shown in ...
+The module C and E are connected by module D through a proprietary interface. LM3S2793 uses two pins of GPIO Port B (PB2 and PB3) for peripheral I2C0 as the SCL and SDA. PB2/I2C0SCL and PB3/I2C0SDA correspond to pin 5 and pin 6 in of the  proprietary interface, as shown in~\autoref{fig:p607}.
 
-Each I2C slave device has a 7-bit address that needs to be unique on the bus. Some devices have fixed I2C address while others have few address lines which determin lower bits of the I2C devices on the bus with unique I2C address. For PD9535, three hardware pins are used to program and vary the fixed I2C address and allow up to eight devices to share the same bus. In our case, the addresses of thses two PD9535 slave devices on module E are 0x20 and 0x21 respectively. More specifically, 0x21 corresponds to the 16 LED lights of the input ports, 0x20 corresponds to the other 16 LED lights of the output ports. 
+Each I2C slave device has a 7-bit address that needs to be unique on the bus. Some devices have fixed I2C address while others have few address lines which determin lower bits of the I2C devices on the bus with unique I2C address. For PD9535, three hardware pins are used to program and vary the fixed I2C address and allow up to eight devices to share the same bus. In our case, the addresses of thses two PD9535 slave devices on module E are 0x20 and 0x21 respectively. More specifically, 0x20 corresponds to the 16 LED lights of the input ports, 0x21 corresponds to the other 16 LED lights of the output ports. 
 
 The PD9535 consists of two configuration, input port, output port and polarity inversion registers, each register has 8 bits. The master device can enable the I/Os as either inputs or output port by writing to the configuration port.
 
@@ -281,6 +281,10 @@ I2C communication begins with a master device sending a start condition which is
 The following pseudo code uses aforementioned ROM API to initialize the I2C slave device for the output port LED lights.
 
 \begin{lstlisting}[style=code, caption={Pseud Code for Initializing the I2C Slave Device for the Ouput Port LED Lights}, captionpos=b]
+ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
+ROM_GPIOPinTypeI2C(0x40059000, 0xC);
+clock = ROM_sysCtlClockGet();
+ROM_I2CMasterInitExpClk(0x40020000, clock, TRUE);
 ROM_I2CMasterSlaveAddrSet(I2C0, 0x21, FALSE);
 ROM_I2CMasterDataPut(I2C0, 0x6);
 ROM_I2CMasterControl(I2C0, I2C_MASTER_CMD_BURST_SEND_START);
@@ -307,3 +311,29 @@ ROM_I2CMasterControl(I2C0, I2C_MASTER_CMD_BURST_SEND_COUNT);
 while (ROM_I2CMasterBusy(I2C0)) {
 };
 \end{lstlisting}
+
+
+\subsubsection{Connections Between Modules}
+
+To answer the question who update the compiled ladder logic code to the real-time microcontroller, we need to further know about how the module are connected. Of all the connectors, the one connecting module B and module C is the most important, as shown in ..... 
+
+!!!!need a enlarged picture of p607 with p609!!!!
+
+Because the communication module B is responsible for communicating with SCADA system and transmitting new data to the real-time module C in a timely manner. With some reverse engineering effort, we figured out the function of most of the pins of this proprietary interface, as shown in~\autoref{fig:p607}.
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/p607}
+	\centering
+	\caption{Connector between Module B and Module C (p607)}
+	\label{fig:p607}
+\end{figure}
+
+As mentioned earlier, on module C, there is a AT45DB21E flash chip. It connects to the microcontroller through SSI0. And it contains one copy of code that will be loaded in once the microcontroller is caught in an unrecoverable error. But by analyzing this interface, we found that the communication module B is not connected to this AT45DB21E flash chip. So we think the code in it is just the backup code used to recover from the fatal error state, and the updated compiled ladder logic is updated by other means.  
+
+By reverse engineering the circuit board and firmware, we identified pin 24 and pin 25 of the connector as the SCL and SDA pin of I2C bus, as shown in~\autoref{fig:p607}. The microcontroller LM3S2793's PAxx PAxx connects LED module E through the communication module B, as shown in~\autoref{fig:modules}.
+
+We also identified that pin 21 and pin 22 are used as CAN bus input and output that come from the communication module B. And pin 29 is used to disable the CAN bus receive signal (RxD). On the CompactLogix PLC 1766, there is only one set of CAN bus for connecting modules, as shown in ....
+
+!!!!! CAN bus pic, on PLC and on board!!!!!
+
+Both the communication module B and real-time module C are connected to this bus.
