@@ -315,9 +315,14 @@ while (ROM_I2CMasterBusy(I2C0)) {
 
 \subsubsection{Connections Between Modules}
 
-To answer the question who update the compiled ladder logic code to the real-time microcontroller, we need to further know about how the module are connected. Of all the connectors, the one connecting module B and module C is the most important, as shown in ..... 
+To answer the question who update the compiled ladder logic code to the real-time microcontroller, we need to further know about how the module are connected. Of all the connectors, the one connecting module B and module C is the most important, as shown in~\autoref{fig:board}. 
 
-!!!!need a enlarged picture of p607 with p609!!!!
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/board}
+	\centering
+	\caption{The Real-time Module}
+	\label{fig:board}
+\end{figure}
 
 Because the communication module B is responsible for communicating with SCADA system and transmitting new data to the real-time module C in a timely manner. With some reverse engineering effort, we figured out the function of most of the pins of this proprietary interface, as shown in~\autoref{fig:p607}.
 
@@ -332,8 +337,7 @@ As mentioned earlier, on module C, there is a AT45DB21E flash chip. It connects 
 
 By reverse engineering the circuit board and firmware, we identified pin 24 and pin 25 of the connector as the SCL and SDA pin of I2C bus, as shown in~\autoref{fig:p607}. The microcontroller LM3S2793's PAxx PAxx connects LED module E through the communication module B, as shown in~\autoref{fig:modules}.
 
-We also identified that pin 21 and pin 22 are used as CAN bus input and output that come from the communication module B. And pin 29 is used to disable the CAN bus receive signal (RxD). On the CompactLogix PLC 1766, there is only one set of CAN bus for connecting modules, as shown in ....
+We also identified that pin 21 and pin 22 are used as CAN bus input and output that come from the communication module B. And pin 29 is used to disable the CAN bus receive signal (RxD). On the CompactLogix PLC 1766, there is only one set of CAN bus for connecting modules. It located on the side of the PLC, it's part of the real-time module, as shown in~\autoref{fig:board}.
 
-!!!!! CAN bus pic, on PLC and on board!!!!!
 
 Both the communication module B and real-time module C are connected to this bus.
