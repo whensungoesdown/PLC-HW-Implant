@@ -47,7 +47,7 @@ The 128 KB flash memory stores the user application code. This part is what we n
 		\begin{tabular}{|p{1.6cm} p{1.6cm} p{4cm}|} 
 			\hline
 			Start & End & Description \\ [0.5ex] 
-			\hline\hline
+			\hline
 			0x00000000 & 0x0001FFFF & On-chip Flash \\ 
 			\hline
 			0x00020000 & 0x00FFFFFF & Reserved \\
@@ -62,7 +62,7 @@ The 128 KB flash memory stores the user application code. This part is what we n
 			\hline
 			0x22200000 & 0x3FFFFFFF & Reserved \\
 			\hline
-			... & ... &   \\ [1ex] 
+			... & ... &   \\ 
 			\hline
 		\end{tabular}
 		\caption{LM3S2793 Memory Map}
@@ -189,7 +189,7 @@ The LM3S2793 uses a different approach. The GPIO ports allow for the modificatio
 During a write, if the address bit associated with that data bit is set, the value of the GPIODATA register is altered. If the address bit is cleared, the data bit is left unchanged. For example, writing a value of 0xEB to the address GPIODATA + 0x098 has the result shown in~\autoref{fig:gpiowrite}, where u indicates that data is unchanged by the write. 
 
 \begin{figure}[th]
-	\includegraphics[width=0.47\textwidth]{figures/gpiowrite}
+	\includegraphics[width=0.37\textwidth]{figures/gpiowrite}
 	\centering
 	\caption{GPIODATA Write Example~\cite{lm3s2793}}
 	\label{fig:gpiowrite}
@@ -198,7 +198,7 @@ During a write, if the address bit associated with that data bit is set, the val
 During a read, if the address bit associated with the data bit is set, the value is read. If the address bit associated with data bit is cleared, the data bit is read as a zero, regardless of its actual value. For example, the result for reading address GPIODATA + 0x0C4 is shown in~\autoref{fig:gpioread}.
 
 \begin{figure}[th]
-	\includegraphics[width=0.47\textwidth]{figures/gpioread}
+	\includegraphics[width=0.37\textwidth]{figures/gpioread}
 	\centering
 	\caption{GPIODATA Read Example~\cite{lm3s2793}}
 	\label{fig:gpioread}
