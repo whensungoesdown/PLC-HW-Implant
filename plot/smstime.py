@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import (AutoMinorLocator, MultipleLocator)
 
 
 N = 6 
@@ -22,10 +23,17 @@ plt.ylim(0, 95)
 #plt.legend((p1[0], p2[0]), ('w/o mitigation', 'w/ mitigation'))
 plt.rc('axes', axisbelow=True)
 
-plt.grid(True, linestyle='--')
+#plt.grid(True, linestyle='--')
 
 ax = plt.axes()
 ax.set_axisbelow(True)
+#ax.xaxis.set_major_locator(MultipleLocator(1))
+ax.yaxis.set_major_locator(MultipleLocator(10))
+#ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+ax.grid(which='major', color='#CCCCCC', linestyle='--')
+ax.grid(which='minor', color='#CCCCCC', linestyle=':')
+
 
 
 plt.tight_layout()
