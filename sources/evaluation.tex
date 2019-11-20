@@ -32,12 +32,16 @@ We get the data by sending a control command to a node with a phone. The command
 
 As shown in the figure, the longer the length of the control command, the more time it takes, and the less reliable it is for an attack that requires precise synchronization.
 
+Since the payload (attack commands) is either pre-existing in the hardware implant or sent by the command message during the attack. The attack in our instance directly manipulates the output of the GPIO. So it does not need to modify any code in any PLC firmware, nor does it need to occupy the storage space of the PLC.
 
-The hardware implant is powered directly from the PLC and does not consume a lot of power. The power consumption will only increase slightly when starting and executing the attack command, as shown in~\autoref{fig:current}.
+Due to different implementations, JTAG debugging capabilities can be intrusive or non-intrusive. The conventional JTAG debug is invasive which halt the processor using breakpoints and watchpoints. It also needs to halt the processor before it can modify any register. However, the debug functionality implemented in LM3S2793 is known as CoreSight architecture. The DAP (Debug Access Port) is an implementation of an ARM Debug Interface which provides real-time access for the debugger without halting the processor to AMBA system memory, peripheral registers and all debug configuration registers. So our hardware implant can modify the GPIO through AHB bus without any software overhead.
 
-\begin{figure*}[tp]
+\begin{figure*}[h]
 	\includegraphics[width=\textwidth]{figures/current}
 	\centering
 	\caption{The hardware implant does not consume a lot of power, and the power consumption will only increase slightly when starting and executing the attack command.  }
 	\label{fig:current}
 \end{figure*}
+
+The hardware implant is powered directly from the PLC and does not consume a lot of power. The power consumption will only increase slightly when starting and executing the attack command, as shown in~\autoref{fig:current}.
+
