@@ -5,9 +5,15 @@
 \usepackage{algorithm, algpseudocode}
 %\usepackage{setspace} % for \singlespacing
 \usepackage{enumitem} %for \begin{itemize}[leftmargin=*]
-\usepackage{subfig} % for two figures side by side
+%\usepackage{subfig} % for two figures side by side, can't use with subfigure
 \usepackage[titletoc,title]{appendix}
 \usepackage{makecell} % for line break in table 
+\usepackage{hyperref}
+\usepackage{amsmath} % for equation
+\usepackage{cleveref} % for Cref
+%\usepackage{subfigure}
+\usepackage{subcaption} % better than package subfigure, supports textwidth
+\usepackage{graphicx}
 %packages
 
 \input{common/preamble}
@@ -31,14 +37,13 @@
 %%\ccsPaper{9999} % TODO: replace with your paper number once obtained
 
 
-
-
 \title{PLC HW Implant}
 
 \author{Mingbo Zhang, Saman Zonouz}
 \date{July 2019}
 
 \begin{document}
+
 
 \maketitle
 
@@ -54,7 +59,8 @@
 %\input{sources/conclusions}
 
 
-\clearpage
+% bib in separate page
+%\clearpage
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{bib} 
 
