@@ -2,6 +2,11 @@
 \section{Evaluation}
 \label{sec:evaluation}
 
+\subsection{Physical Dimensions}
+Because our solution is hardware-based, the size of out hardware implant is important. This is different from software or firmware-based attacks.
+
+Although if we make our own circuit board to carry the relevant chip, the size of hardware implant can be minimized. But in this project, the parts we used for the prototype are all COTS (Commercial off-the-shelf) products. Mainly Teensy 3.2 board and GSM800C HAT board, and the comparison of their physical size with a Allen-bradley PLC's size is shown in~\autoref{fig:eval_size}.
+
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/eval_size}
 	\centering
@@ -9,6 +14,7 @@
 	\label{fig:eval_size}
 \end{figure}
 
+We put all the parts together and put the complete hardware implant into the PLC, and connected the JTAG interface with the real-time microcontroller board. ~\autoref{fig:eval_a} shows that the PLC has enough space to let the hardware implant working properly. 
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/eval_a}
@@ -16,6 +22,8 @@
 	\caption{Test}
 	\label{fig:eval_a}
 \end{figure}
+
+~\autoref{fig:eval_b1} and ~\autoref{fig:eval_b2} are the front and back images when we assembled the PLC. It is difficult to find our hardware implant from the appearance, because it is completely embedded in the PLC plastic case without any exposed parts. The PLC on the left is used for comparison, and the right one is equipped with a hardware implant
 
 \begin{figure}[tp]
 	\centering
@@ -37,8 +45,9 @@
     \vspace{-0.15in}
 	\caption{Two PLC}
 	\vspace{-0.15in}
-    \label{fig:attack1}
 \end{figure}
+
+\subsection{Performance}
 
 In our threat model, this hardware implant should exist independently of the PLC's communication network. To achieve this, as mentioned before, we chose to use cellular networks to communicate with nodes via SMS message. This approach is not as reliable as wired networks, especially in our attack model, which may require multiple nodes to launch attacks at the same time. We evaluated the approximate time required for SMS transmission, as shown in~\autoref{fig:smstime}, although we know that this may be affected by a variety of factors, such as the distance between the cell phone and the base station, the number of cell phones served by the same base station, across different networks, and so on. We also know that a SMS message over 160 characters will be split, large messages are segmented into 153 character segments and sent individually then rebuilt by the recipients device. But in order to avoid differences in the protocols implemented by different SMS programs or there may be some extra bytes attached to the SMS message, we did not strictly evaluate it by the number of SMS segments. From a practical point of view, we evaluated the transmission time corresponding to the length of the control command.
 
