@@ -11,14 +11,8 @@ After Ukraine, Venezuela and Argentina power outage, a series of events \textcol
 
 The timing of hardware backdoor implantation can be during the manufacturing process of industrial control equipment, because we know that in a modern industrial environment, the production of complex equipment involves a huge supply chain globally. At the same time, critical infrastructure, such as power grids, is widely distributed. Especially in remote areas, attackers can install hardware backdoor in industrial control equipment by infiltrating substations. The hardware backdoor only needs physical contact and does not need to access the network or be verified by software protections. The installation process does not necessarily require professionals who are proficient in industrial control equipment.
 
-In this paper, we propose a PLC hardware implant which enables us the ability to control multiple points (PLC) simultaneously through GSM network, as shown in~\autoref{fig:bigpic}. Existed research \textcolor{red}{(todo: cite)} works detects abnormality within a system if only one or two PLCs are compromised. With multiple points controlling, this attack depicting a system that running normally, but underneath, mitigations are bypassed and the damage is done.
+In this paper, we propose a PLC hardware implant which enables us the ability to control multiple points (PLC) simultaneously through GSM network. Existed research \textcolor{red}{(todo: cite)} works detects abnormality within a system if only one or two PLCs are compromised. With multiple points controlling, this attack depicting a system that running normally, but underneath, mitigations are bypassed and the damage is done.
 
 Our PLC hardware implant prototype is small enough to mount inside a PLC case. Further, size reduction and even circuit integration during PLC board manufacture are also possible, but those are out the scope of this paper.
 
-\begin{figure*}[tp]
-	\includegraphics[width=\textwidth]{figures/bigpic}
-	\centering
-	\caption{Hardware backdoors are installed through industrial control system supply chain penetration of physical contact with industrial systems. Form a botnet that can remotely control multiple points simultaneously.}
-	\label{fig:bigpic}
-\end{figure*}
 

@@ -14,11 +14,11 @@ The PLC has a firmware acting as the real-time operating system. It also provide
 The ladder logic programs are executed repeatedly in fixed intervals, called scan cycles. When the logic calls the firmware routines to toggle an output pin, it is carried out by setting/clearing a memory bit, which is the MMIO address corresponding to output pins, thus to the sockets of the I/O module. PLC usually has LEDs at the front panel to indicate the inputs and output pins' current status.
 
 
-\textbf{\textit{JTAG.}} JTAG interface named after Joint Test Action Group, is a industry standard port for IC testing. This is necessary because of the growing complexity of integrated circuits makes the design verification tends to be more and more difficult.
+\textbf{\textit{JTAG}} is a common name of the industry-standard IEEE1149.1 for verifying designs and testing printed circuit boards after manufacture. It is named after the Joint Test Action Group.
 
-The JTAG interface use very few pins (TDI, TDO, TMS and TCK) to talk to test access port(TAP) which implements a state machine and a set of registers to further connect more circuit components, from which it can access memory bus and more debug facilities, as shown in ~\autoref{fig:jtagsm}. The two major register of TAP are Instruction Register(IR) and Data Register(DR). They work in a serial mode in which they accepts/sends out bit stream through the four former mentioned JTAG pins. The IR register contains the command to be executed, DR contains shift-in data or the command's result. JTAG is just a way to read/write data to different registers/components that connected to the system. It's early applications targeted board level testing, diagnosis and fault isolation. Nowadays JTAG is used as the primary way of accessing sub-blocks of integrated circuits, making it the most common way to debug embedded system. In this project, the PLC we work with use ARM cortex-m3 based microcontroller, ARM Cortex-M series  contains CoreSight Technology which is a power debug model. The CoreSight can't be operated through either JTAG or SWD(Serial Wire Debug) interface.
+JTAG is the common name of the IEEE1149.1 standard, which defines the Standard Test Access Port and Boundary-Scan Architecture for test access ports used for testing printed circuit boards using boundary scan. The JTAG interface uses very few pins (TDI, TDO, TMS, TCK, and TRST) to connect to an on-chip Test Access Port (TAP) that implements a stateful protocol, as shown in ~\autoref{fig:jtagsm}.  One or more devices can expose multiple TAPs in a daisy chain, also known as a scan chain. The host communicates with the TAPs by manipulating TMS and TDI in conjunction with TCK and reading results through TDO. 
 
-\begin{figure}[th]
+\begin{figure}[ht]
 	\includegraphics[width=0.47\textwidth]{figures/jtagsm}
 	\centering
 	\caption{JTAG TAP state machine.}
@@ -26,17 +26,36 @@ The JTAG interface use very few pins (TDI, TDO, TMS and TCK) to talk to test acc
 \end{figure}
 
 
-On ARM Cortex-M series microcontroller has build on a Debug Access Port(DAP) which is comprised of a Debug Port(DP) and several Access Ports(AP). DP manages the connection to an external debugger. APs access on-chip system resources. DAPBUS connects the DP to one or more APs. The APs provide non-invasive access to APB bus though APB-AP,  and to other legacy-configured debug components using JTAG-AP. In our project, we access system memory and memory-mapped IO through AHB-AP. Because of this comprehensive debug ability that ARM provide, our hardware implant can fully control the system by connects to the JTAG pins.
+The JTAG standard has four common registers: Instruction Register (IR) and Data Register (DR),  IDCODE, and BYPASS. The IDCODE register contains data that uses a standardized format that includes a manufacturer code. The BYPASS register is a single bit data register that allows this device to be bypassed (do nothing) while other devices in the scan chain are examined. The IR and DR register's size depends on the TAP implementation, and they are used to send in instruction and receive result data.
 
-On the real-time microcontroller board, we found JTAG solder joints, as shown in~\autoref{fig:board_jtag}. It supports both JTAG and SWD (Serial Wire Debug\cite{ashfieldserial}) interfaces. In this paper, we choose to use JTAG interface. But if you use the SWD interface, some of the pins will be reused as SWD pins. 
+The TAP implementation defines various instructions, as are data registers associated. For example, the host sends in the IDCODE instruction through IR and subsequently gets the value of the same-name 32-bit register (IDCODE) from TDO.
 
-\begin{figure}[th]
-	\includegraphics[width=0.47\textwidth]{figures/board_jtag}
+The target device we have been worked on uses an ARM core, and the TAP controller is also implemented using CoreSight technologies from ARM. It is called Debug Access Port (DAP) instead. One of the differences is that, traditionally, accessing system memory would be achieved by halting the processor and then downloading instructions. On the other side, the CoreSight DAP controller implements a bridge between the external and various on-chip protocols so that one can access memory at run time. 
+
+\begin{figure}[ht]
+	\includegraphics[width=0.47\textwidth]{figures/dap}
 	\centering
-	\caption{JTAG Interface on the Real-time Microcontroller Board}
-	\label{fig:board_jtag}
+	\caption{DAP}
+	\label{fig:dap}
 \end{figure}
 
-The JTAG specification allows for several devices to be connected to a single interface in a daisy chain configuration. In this case, we found that there is only one microcontroller connected.
+As shown in~\autoref{fig:dap}, each DAP contains Debug Ports (DPs) and Access Ports (APs). The DP  accesses the DAP from an external debugger and controls the APs to respond to external commands to access on-chip system resources. In this case, the DP port used is Serial Wire JTAG Debug Port (SWJ-DP) since the interface supports both JTAG and Serial Wire (DW) protocols.
+For system accesses, the access ports are AHP-AP, ABP-AP, and JTAG-AP. The AHB-AP provides an AHB-Lite master for access to a system AHB bus, which we primarily use to access the RAM or MMIO of the PLC. 
 
-Because we want to implement JTAG debugging functionality on a very small device, in order to be able to fit into the PLC case. Currently we choose Teensy 3.2 development board. For smaller PCB boards, smaller chips are required, such as an 8-bit microcontroller system, which typically has very limited on-chip memory. So we choose to implement the JTAG driver ourselves, instead of choosing an open source project, such as OpenOCD\cite{hogl2006open}. The code for implementing JTAG debugging with Teensy 3.2 development board has been uploaded to github\footnote{https://github.com/whensungoesdown/teensyi\_jtag}. It only needs to modify 4 GPIO pins, so it can be easily ported to other devices.
+
+Because of this comprehensive debug ability that the ARM CoreSight DAP controller provides, our hardware implant can fully control it by connecting to the JTAG pins.
+
+
+% move to design
+%On the real-time microcontroller board, we found JTAG solder joints, as shown in~\autoref{fig:board_jtag}. It supports both JTAG and SWD (Serial Wire Debug\cite{ashfieldserial}) interfaces. In this paper, we choose to use JTAG interface. But if you use the SWD interface, some of the pins will be reused as SWD pins. 
+%
+%\begin{figure}[th]
+%	\includegraphics[width=0.47\textwidth]{figures/board_jtag}
+%	\centering
+%	\caption{JTAG Interface on the Real-time Microcontroller Board}
+%	\label{fig:board_jtag}
+%\end{figure}
+%
+%The JTAG specification allows for several devices to be connected to a single interface in a daisy chain configuration. In this case, we found that there is only one microcontroller connected.
+%
+%Because we want to implement JTAG debugging functionality on a very small device, in order to be able to fit into the PLC case. Currently we choose Teensy 3.2 development board. For smaller PCB boards, smaller chips are required, such as an 8-bit microcontroller system, which typically has very limited on-chip memory. So we choose to implement the JTAG driver ourselves, instead of choosing an open source project, such as OpenOCD\cite{hogl2006open}. The code for implementing JTAG debugging with Teensy 3.2 development board has been uploaded to github\footnote{https://github.com/whensungoesdown/teensyi\_jtag}. It only needs to modify 4 GPIO pins, so it can be easily ported to other devices.
