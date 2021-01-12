@@ -35,7 +35,7 @@ The target device we have been worked on uses an ARM core, and the TAP controlle
 \begin{figure}[ht]
 	\includegraphics[width=0.47\textwidth]{figures/dap}
 	\centering
-	\caption{DAP}
+	\caption{The debug port receives host signals and maintains the JTAG state machine. Through IR and DR, instruction and data are sent in, and specific registers are utilized to access on-device resources. SRAM and MMIO memory on the ARM microcontroller can be accessed through the AHB bus at runtime without halting the processor.}
 	\label{fig:dap}
 \end{figure}
 
@@ -46,16 +46,3 @@ For system accesses, the access ports are AHP-AP, ABP-AP, and JTAG-AP. The AHB-A
 Because of this comprehensive debug ability that the ARM CoreSight DAP controller provides, our hardware implant can fully control it by connecting to the JTAG pins.
 
 
-% move to design
-%On the real-time microcontroller board, we found JTAG solder joints, as shown in~\autoref{fig:board_jtag}. It supports both JTAG and SWD (Serial Wire Debug\cite{ashfieldserial}) interfaces. In this paper, we choose to use JTAG interface. But if you use the SWD interface, some of the pins will be reused as SWD pins. 
-%
-%\begin{figure}[th]
-%	\includegraphics[width=0.47\textwidth]{figures/board_jtag}
-%	\centering
-%	\caption{JTAG Interface on the Real-time Microcontroller Board}
-%	\label{fig:board_jtag}
-%\end{figure}
-%
-%The JTAG specification allows for several devices to be connected to a single interface in a daisy chain configuration. In this case, we found that there is only one microcontroller connected.
-%
-%Because we want to implement JTAG debugging functionality on a very small device, in order to be able to fit into the PLC case. Currently we choose Teensy 3.2 development board. For smaller PCB boards, smaller chips are required, such as an 8-bit microcontroller system, which typically has very limited on-chip memory. So we choose to implement the JTAG driver ourselves, instead of choosing an open source project, such as OpenOCD\cite{hogl2006open}. The code for implementing JTAG debugging with Teensy 3.2 development board has been uploaded to github\footnote{https://github.com/whensungoesdown/teensyi\_jtag}. It only needs to modify 4 GPIO pins, so it can be easily ported to other devices.
