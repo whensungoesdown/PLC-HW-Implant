@@ -18,6 +18,7 @@ The supply-chain attack is a hot topic recently due to the SolarWinds incident~\
 \end{figure*}
 
 
+When the attacker can control a certain number of PLCs, he can initiate a synchronous attack remotely through the cellular network. In this way, the attacker does not need to tamper with the firmware or update ladder logic, so there is no need to go through the existed mitigations such as security checking and ladder logic emulation.
 
 
 %\subsection{Adversary Model}
@@ -52,9 +53,17 @@ The operating system and software mitigation that runs on the microcontroller do
 
 
 
-\subsection{Challenges and Approaches }
+\subsection{Challenges and Approaches}
 
-On the real-time microcontroller board, we found JTAG solder joints, as shown in~\autoref{fig:board_jtag}. It supports both JTAG and SWD (Serial Wire Debug\cite{ashfieldserial}) interfaces. In this paper, we choose to use JTAG interface. But if you use the SWD interface, some of the pins will be reused as SWD pins. 
+The major challenge in attacking PLCs is not having enough information about the device. Some vendors publish the microcontroller's datasheet, but some vendors use proprietary design with highly customized instruction set architecture (ISA).  The layout of the PCB board and the on-board pin definition are also not publicly available.
+
+\textbf{\textit{Firmware.}} The flash chip stores the real-time operating system and the associated file system, referred to as the firmware. Some modules may use a commercial real-time operating system such as VxWorks, but the firmware update's format is confidential and usually protected by encryption verification. Those modules are mostly used to communicate with the host for updates or establish a web server. For the real-time module that we try to control, the type of operating system is unknown.
+
+To solve it, we use the following two ways to read out the firmware. We use the JTAG interface and the CoreSight DAP functionality to read out the flash and ROM memory, which are part of the microcontroller. We also use In-System Programming (ISP) to read the flash chip after the board is powered off.  With the firmware images and reverse engineering effort, we can identify the internal data structures and libraries used to control peripheral devices.
+
+\textbf{\textit{JTAG Pins.}} On some boards, the JTAG pins are difficult to trace, especially when the microcontroller is in BGA packaging where all the pins are underneath the chip. Fortunately, the board we work on has a 10-pin solder pad, as shown in ~\autoref{fig:board_jtag}, which is likely to be the unsoldered JTAG socket. With the microcontroller's datasheet, we can find the chip's JTAG PINs and then use a multimeter to test the continuity between the chip and the pad. It is trivial to identify each pin on the pad.
+
+In our case, the chip supports both JTAG and Serial Wire Debug (SWD)\cite{ashfieldserial}, and some of the pins are shared. We choose to use JTAG in this project.
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/board_jtag}
@@ -63,7 +72,12 @@ On the real-time microcontroller board, we found JTAG solder joints, as shown in
 	\label{fig:board_jtag}
 \end{figure}
 
-The JTAG specification allows for several devices to be connected to a single interface in a daisy chain configuration. In this case, we found that there is only one microcontroller connected.
 
-Because we want to implement JTAG debugging functionality on a very small device, in order to be able to fit into the PLC case. Currently we choose Teensy 3.2 development board. For smaller PCB boards, smaller chips are required, such as an 8-bit microcontroller system, which typically has very limited on-chip memory. So we choose to implement the JTAG driver ourselves, instead of choosing an open source project, such as OpenOCD\cite{hogl2006open}. The code for implementing JTAG debugging with Teensy 3.2 development board has been uploaded to github\footnote{https://github.com/whensungoesdown/teensyi\_jtag}. It only needs to modify 4 GPIO pins, so it can be easily ported to other devices.
+\textbf{\textit{JTAG Protocol.}}
 
+We want the hardware backdoor's physical size as small as possible to be less noticeable inside a PLC. Therefore we decide to use a microcontroller soc to achieve the function. It includes a primary JTAG protocol driver and operations on the CoreSight DAP registers, equivalent to a very basic hardware debugger. We can not use open source hardware debugger implementation such as OpenOCD~\cite{hogl2006open} because the soc we choose has a Cortex-M3 core that can not support the runtime environment OpenOCD needs.
+
+We use the Teensy 3.2 development board for its small PCB size, and we implement the JTAG protocol on top of it in a bare-metal runtime environment. The source code is available at the github~\footnote{https://github.com/whensungoesdown/teensy\_jtag}. We call this part the control module for the rest of the paper. 
+
+
+\textbf{\textit{Remote Control}} is the basic function of a backdoor. Due to the possible network access control that the target network may have deployed, we choose to use a wireless cellular network to send control commands. Therefore an additional GSM module is added to the backdoor and connects with the control module through a serial port.
