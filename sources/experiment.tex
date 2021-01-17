@@ -3,11 +3,17 @@
 \label{sec:experiment}
 
 \subsection{Reverse Engineering}
-We did reverse engineering to this PLC in order to better understand it, so that it can be completely controlled. This reverse engineering consists of two parts. The hardware part is to distinguish the modules and how they are connected. The software part is mainly the disassembly of the firmware.
+The PLC we use in this paper is Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370. The reverse engineering process consists of two parts. The hardware part is primarily wire tracing, and the software part is to analyze the disassembly of the dumped firmware.
 
-\subsubsection{Backplanes}
+First, we need to determine each module in the PLC and check the microcontroller model and other essential IC chips. Next, we need to dump the firmware from the microcontroller and other chips.
 
-A PLC such as Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370, usually contains multiple PCB module boards, called backplanes, as shown in~\autoref{fig:modules}.
+\textbf{\textit{Backplanes.}} The Allen-Bradley CompactLogix 5370 contains several PCB module boards, known as backplanes. ~\autoref{fig:modules} shows that it contains one communication module, one real-time controller module, DC digital input/output module, and the power supply module. They are interconnected through proPrutoref{tab:memorymap} shows the memory map.ietary sockets.
+
+The communication module \textbf{B} itself is a complete embedded system, including a CPU, DRAM, and other peripherals such as ethernet, SD card socket, and USB port. Its function is to communicate with the host to update firmware and ladder logic, and it also contains a web server. On the one hand, this module is not the one that controls IO, not our target. On the other hand, two FPGA chips are used to implement the processor and other peripheral devices such as the ethernet controller, making it very difficult to find the JTAG interface.
+
+We focus on the real-time controller, which mainly executes the compiled ladder logic and controls the IO accordingly. Fortunately, the module uses a commercial microcontroller, Stellaris LM3S2793 SoC from Texas Instruments.
+
+The IO module \textbf{D} has 16 inputs and 16 outputs socket, connecting to the real-time module \textbf{B}, through power switch and optically coupled isolator chips, eventually connected to the pins of the microcontroller. The LED module \textbf{E} contains LED lights for each IO socket and the status indicator of the PLC. Its wire goes through the communication module's PCB board and connects to the real-time module. Instead of directly connects each LED light, the microcontroller controls the LED module through the I2C protocol. The power module \textbf{A} provides stable 3 volts for other boards. The backdoor implant can either get power directly from it or the JTAG pad on the real-time module.
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/modules}
@@ -16,31 +22,11 @@ A PLC such as Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370, usually contain
 	\label{fig:modules}
 \end{figure}
 
-For the PLC we use, it contains one communication module, one real-time controller module, DC digital input/output module and the power supply module. They are interconnected through a proprietary interface. The communication module itself is a complete embedded system that is responsible for communicating with external systems such as SCADA trough Ethernet. It may also host a website for statistics and management.
-
-The real-time controller module also is a complete embedded system. It uses a real-time operating system to handle industrial logic signals though input/output module.
-
-In this paper, because our main purpose is to control the physical system, our focus is on the real-time controller module.
 
 
-\subsubsection{Microcontroller}
 
-The real-time controller module uses the TI Stellaris LM3S2793 SoC. It has a ARM Cortex-M3 processor core operates at 80 MHz. It contains up to 67 GPIOs depending on configuration, JTAG and ARM Serial Wire Debug (SWD) interfaces, two I2C modules and so on.
+\textbf{\textit{Microcontroller.}} The TI Stellaris LM3S2793 SoC has an ARM Cortex-M3 processor core that operates at 80 MHz. It contains 64 KB SRAM and 128 KB flash. The internal ROM is preprogrammed with Stellaris Peripheral Driver Library (DriverLib) to drive the on-chip peripheral devices. ~\autoref{tab:memorymap} shows the memory map. 
 
-\subsubsection{Internal Memory}The Stellaris LM3S2793 microcontroller~\cite{lm3s2793} comes with 64 KB of bit-banded SRAM, internal ROM, and 128 KB of Flash memory. The internal ROM is located at address 0x1000000 of the device memory map. It contains the following components:
-
-\begin{itemize}
-	\item Stellaris Boot Loader and vector table
-	\item Stellaris Peripheral Driver Library (DriverLib) release for product-specific peripherals and interfaces
-	\item Advanced Encryption Standard (AES) cryptography tables
-	\item Cyclic Redundancy Check (CRC) error detection funtionalify
-\end{itemize}
-
-The ROM can be seen as a function library similar to the PC BIOS. Instead of calling through system interrupt, it's called by a vector table. We will talk about it in more detail later.
-
-The LM3S2793 microcontroller provides 64 KB of single-cycle on-chip SRAM. The internal SRAM is located at offset 0x20000000 of the device memory map.
-
-The 128 KB flash memory stores the user application code. This part is what we need to do reverse engineering. The first step is to find out where the code is and the entry point.
 
 \begin{center}
 	\begin{table}
@@ -62,38 +48,33 @@ The 128 KB flash memory stores the user application code. This part is what we n
 			\hline
 			0x22200000 & 0x3FFFFFFF & Reserved \\
 			\hline
-			... & ... &   \\ 
-			\hline
 		\end{tabular}
 		\caption{LM3S2793 Memory Map}
 		\label{tab:memorymap}
 	\end{table}
 \end{center}
 
-\autoref{tab:memorymap} shows part of the memory map of LM3S2793, it's easy to see where the flash memory is. It's from 0x00000000 to 0x0001FFFF, 128 KB. But we also have to be aware that this mapping may change because of the boot loader.
-
-The Stellaris Boot Loader is used to download code to the Flash memory of a device without the use of a debug interface. It means that when the microcontroller is rest, the user has the opportunity to direct the microcontroller to execute the ROM boot loader or the application in flash memory by using any GPIO signal in GPIO ports as configured in the Boot Configuration (BOOTCFG) register.
 
 
-\subsubsection{Entry Point}
-At reset, the ROM is mapped over the flash memory so that the ROM boot sequence is always executed. After that, depends on the BOOTCFG's setting and the signal from certain GPIO port, the ROM is mapped to 0x01xxxxxx and flash memory is mapped to the address 0x00000000. Then, the data at address 0x00000004 is read. If the data is 0xFFFFFFFF, which means the flash is not programmed, the ROM will be mapped back to address 0x00000000 again and execution continues out of the ROM boot loader. If it's not 0xFFFFFFFF, the data at address 0x00000000 will be used as the stack address and it will be loaded into stack pointer (SP). The program counter (PC) is loaded from address 0x00000004. That's the entry point for user application. This is also confirms to ARM's definition of vector table. ARM architecture expects the interrupt vector table at the start of the memory. It contains the reset value of the stack pointer, and the start address, also called exception vectors, for all exception handlers.  
+\textbf{\textit{Reset Vector.}} The vector table is fixed at address 0x00000000 on system reset. Once a core is out of reset sequence, it starts executing from memory address 0x00000004, the reset vector.  From the memory map, the reset vector resides in the flash memory instead of the ROM. The reason is that the ROM boot loader is only used as an initial program loader when the flash memory is empty and as an application-initiated firmware upgrade mechanism. For instance, if the data at address 0x00000004 is 0xFFFFFFFF, the ROM is mapped to address 0x00000000, and execution continues out of the ROM boot loader. If there is data at address 0x00000004 that is not 0xFFFFFFFF, the stack pointer (SP) is loaded from Flash memory at address 0x00000000 and the program counter (PC) is loaded from address 0x00000004. The firmware then begins executing from the flash memory.
 
-In our device, the SP value is 0x20000B48, and the PC value is 0x000000E3. Since 0xE3 is an odd number, which violate the memory alignment of ARM architecture, the least significant bit indicates that from address 0xE2, the instruction are in Thumb code.
 
-We dumped the flash memory to a file, and start to disassemble at address 0xE2.
+In our case, the SP value is 0x20000B48, and the PC is 0x000000E3. Notice that 0xE3 is an odd number, ARM is a RISC architecture that uses a fixed-length instruction encoding format which uses four bytes instruction for the 32-bit processor. Certainly, the least significant bit indicates that the next branch uses Thumb instructions. Therefore we dump the flash memory and start to disassemble at address 0x000000E2.
 
-We also noticed that the SRAM which starts from 0x20000000, replicate the flash memory. This is because SRAM runs much faster than the flash. At system clock speeds of 50 MHz and below, the flash memory is read in a single cycle. LM3S2793 operates at 80 MHz. But the flash memory has a prefetch buffer that is automatically used when the CPU frequency is greater than 50 MHz. In this mode, the flash memory operates at half of the system clock. The prefetch buffer fetches two 32-bit words per clock allowing instructions to be fetched with no wait states while code is executing linearly.
+\textbf{\textit{Flash boot loader.}} The SRAM is at 0x20000000. The flash boot loader copies itself to SRAM memory right after it starts, in consideration of performance. Even though the SRAM and flash memory can both be accessed in a single cycle, the manual says that the flash memory only can do that as long as the code is linear and branches incur a one-cycle stall. 
 
-When the system boot, the first thing it does is to copy part of flash to SRAM, specifically, copying 0x0 - 0xA88 to 0x20000000 - 0x20000A88. Next, clears 0x20000A88 - 0x20000F54 to 0. Then it sets up the Vector Table Offset Register which contains the location of the vector table, indicating either it's in flash or SRAM and the offset. After these steps, the code jumps back to SRAM to continue execution.
+The code copies memory range 0x0 - 0xA88 to 0x20000000 - 0x20000A88 and initialize the data section 0x20000A88 - 0x20000F54 to 0.  Next, it uses the vector table that resides in SRAM. As mentioned above, on system reset, the vector table is fixed at address 0x00000000. The privileged code can write to the Vector Table Offset (VTABLE) register to relocate the vector table start address to a different memory location aligned on a 512-byte boundary. Replacing the vector table could mean completely changing the system's behavior because the corresponding interrupt vectors will point to different interrupt handlers to process peripheral devices' requests.
+
+
+Finally, it sets the vector table to 0x20000000 and jumps to SRAM to continue.
 
 
 
-
-\subsubsection{Stellarisware ROM Library}
-The ROM library~\cite{lm3s2793rom} use tables to access function entry points for the APIs that are provided in the ROM. The tables are split into two levels. The main table contains one pointer per peripheral which points to a secondary table that contains one pointer per API that is associated with that peripheral. The main table is located at 0x01000010 right after the Cortex-M3 vector table in the ROM. \autoref{tab:romtable} shows a portion of the API table and ~\autoref{tab:gpiotable} shows part of the secondary ROM\_GPIOTABLE which contains the entry points of all the GPIO related functions.
+\textbf{\textit{Stellaris Peripheral Driver Library.}} The Drivelib~\cite{lm3s2793rom} uses tables to provide library API entries. The tables have two levels. The main table contains one pointer per peripheral, which points to a secondary table containing one pointer per API associated with that peripheral. The main table is located at 0x01000010, right after the Cortex-M3 vector table in the ROM. \autoref{tab:romtable} shows a portion of the API table, and ~\autoref{tab:gpiotable} shows part of the ROM\_GPIOTABLE, which contains the entry points of all the GPIO related APIs.
 
 \begin{center}
 	\begin{table}
+		\small
 		\begin{tabular}{|p{7.2cm}|} 
 			\hline
 			ROM\_APITABLE (0x1000010) \\ [0.5ex] 
@@ -120,6 +101,7 @@ The ROM library~\cite{lm3s2793rom} use tables to access function entry points fo
 
 \begin{center}
 	\begin{table}
+		\small
 		\begin{tabular}{|p{7.2cm}|} 
 			\hline
 			ROM\_GPIOTABLE \\ [0.5ex] 
@@ -132,6 +114,10 @@ The ROM library~\cite{lm3s2793rom} use tables to access function entry points fo
 			\hline
 			[3] = function ROM\_GPIOIntTypeSet \\
 			\hline
+			[4] = function ROM\_GPIOIntTypeGet \\
+			\hline
+%			[5] = function ROM\_GPIOPadConfigSet \\
+%			\hline
 			... \\ 
 			\hline
 		\end{tabular}
@@ -141,66 +127,67 @@ The ROM library~\cite{lm3s2793rom} use tables to access function entry points fo
 \end{center}
 
 
-The following is an example of calling function ROM\_GPIOPinRead() from the flash memory disassembly. API table indexing 0x1000010 + 0x10 (ROM\_APITABLE[4]) is optimized to 0x1000020 which points to the GPIO API table. [R2,\#0x2C] represents ROM\_GPIOTABLE[11] which is ROM\_GPIOPinRead(). So the code that calling the ROM library is very helpful to reveal the intent of the program.
+%The following is an example of calling function ROM\_GPIOPinRead() from the flash memory disassembly. API table indexing 0x1000010 + 0x10 (ROM\_APITABLE[4]) is optimized to 0x1000020 which points to the GPIO API table. [R2,\#0x2C] represents ROM\_GPIOTABLE[11] which is ROM\_GPIOPinRead(). So the code that calling the ROM library is very helpful to reveal the intent of the program.
+
+
+\autoref{fig:romapiexample} shows a typical code snippet calling a ROM API. The table is at 0x1000010 + 0x10 (ROM\_APITABLE[4]), the GPIO table and the API is ROM\_GPIOPinRead() (ROM\_GPIOTABLE[11]). All the ROM API call sites have the same pattern, which makes reverse engineering the firmware much easier.  Calling the ROM API is merely to find the function address from the two-level tables and then jump to it. There is no privilege change; all the code runs in the system mode.
 
 
 \begin{figure}[th]
-	\includegraphics[width=0.37\textwidth]{figures/romapiexample}
+	\includegraphics[width=0.47\textwidth]{figures/romapiexample2}
 	\centering
-	\caption{Example of calling ROM library API}
+	\caption{A code snippet calling ROM\_GPIOPinRead(). The parameters are passed in through the general registers where, in this case, the function has two parameters: R0 contains the GPIO port address to operate, and R1 is the bit-packed representation of the pins.  R2 stores the GPIO API table's address and eventually loads the API entry point and then jump to it.}
 	\label{fig:romapiexample}
 \end{figure}
 
 
 
-\subsubsection{Debugging}
 
-Debugging plays an important role in the reverse engineering process. To debug an ARM core, we need the JTAG interface and a hardware debugger. In this project, we use SEGGER J-Link which contains a GDB-Server. The J-Link GDB Server is a remote server for the GDB which allows to use J-Link with GDB or any tool chain which uses GDB as debugging interface. We also need GNU Embedded Toolchain for ARM~\cite{gnutoolchainarm}, meaning, the ARM version of gdb client.
-
-As mentioned earlier, the stack pointer and program counter are located at address 0x00000000 and 0x00000004 which is the reset vector. To debug the target ARM core, we use a GDB initialization script, as shown below, which contains GDB commands to automatically execute during GDB startup to make the debugger stopping at the beginning of the reset vector.  
-
-\begin{lstlisting}[basicstyle=\small, caption={GDB stript file .gdbinit}, captionpos=b]
-target remote localhost:2331
-monitor speed 1000
-monitor reset
-monitor reg r13 = (0x00000000)
-monitor reg pc = (0x00000004)
-monitor flash breakpoints = 1
-\end{lstlisting}
-
-At this point, if you enter the gdb command "continue", the ARM core will continue to execute and then run ladder logic normally. But whenever you interrupt the core with hitting "Ctrl - C", the red LED of the PLC will light up and report an IO error. 
+\textbf{\textit{Debug.}} In addition to reverse-engineering,  we also need to debug the firmware. We use the SEGGER J-Link debugger. Since the target is ARM and the debugger sets up a GDB server, we also need GNU Embedded Toolchain for ARM~\cite{gnutoolchainarm}, an ARM version of the gdb client.
 
 
-\subsubsection{more reverse engineering topics ....}
-
-Through reverse engineering, it shows that the Vector Table Offset Register is first at address 0x0, then switch to address 0x20000000, after receiving the ladder logic code, finally set to address 0x40000. 
-
-\subsection{GPIO}
-The most important way for PLC to control the physical system is through the input and output pins on the IO module. These pins correspond directly to the GPIO on the real-time microcontroller. So, knowing how to control GPIO and having knowledge of the physical system is equivalent to being able to directly control the physical system.
-
-The way to control GPIO is different on different microcontroller. Luckily it's well documented for LM3S2793 microcontroller~\cite{lm3s2793}. 
-
-There are up to 67 GPIOs, depending on configuration. They can be used individually as GPIO pins or one of several peripheral functions by pin muxing.
-
-There are multiple registers associated with each GPIO port. For instance, GPIO port mode register, GPIO port data register, GPIO bit set/reset register and so on. Those registers are used to configure and hold the data for the GPIO port. Usually when we configure the registers, we use the "Read Modify Write" (RMW) where we need to first read the register, and then, depending on the value, a new value will be write back to the same register. But most of the microcontroller doesn't have an atomic RMW operation. If multiple pieces of code are running at the same time, especially on multiprocessor systems, it will cause synchronization problems (Race condition). To address the issue, some GPIO module has Bit Set/Reset Register (BSRR) or Bit Reset Register (BRR). For example, the BSRR could be a 32-bit register where the lower 16 bits are used to set any of the 16 pins of a particular GPIO port, and the higher 16 bits are used to clear the same 16 pins.
-
-The LM3S2793 uses a different approach. The GPIO ports allow for the modification of individual bits in the GPIO Data (GPIODATA) register by using bits [9:2] of the address bus as a mask. In this manner, software drivers can modify individual GPIO pins in a single instruction without affecting the state of the other pins. This explains why a GPIO port requires a large address space, because to implement this method, the GPIODATA register covers 256 locations. 
-
-During a write, if the address bit associated with that data bit is set, the value of the GPIODATA register is altered. If the address bit is cleared, the data bit is left unchanged. For example, writing a value of 0xEB to the address GPIODATA + 0x098 has the result shown in~\autoref{fig:gpiowrite}, where u indicates that data is unchanged by the write. 
+As mentioned earlier, the stack pointer and program counter are located at address 0x00000000 and 0x00000004. As shown in~\autoref{fig:gdbinit}, we use a GDB initialization script that contains GDB commands to set up the target. This script makes the PLC initialized and runs ladder logic, but the PLC cannot be interrupted during runtime with the debugger. If so, the indicator on the LED panel will prompt an IO error. The reason is still under investigation, and it could be that the watchdog timer is not handled well.
 
 \begin{figure}[th]
-	\includegraphics[width=0.37\textwidth]{figures/gpiowrite}
+	\includegraphics[width=0.47\textwidth]{figures/gdbinit}
 	\centering
-	\caption{GPIODATA Write Example~\cite{lm3s2793}}
+	\caption{The minimal gdbinit script that sets the SP and PC registers makes the PLC be up and running. Other on-chip peripheral controllers may not be correctly initialized.}
+	\label{fig:gdbinit}
+\end{figure}
+
+
+
+%\subsubsection{more reverse engineering topics ....}
+
+%Through reverse engineering, it shows that the Vector Table Offset Register is first at address 0x0, then switch to address 0x20000000, after receiving the ladder logic code, finally set to address 0x40000. 
+
+
+\subsection{GPIO}
+
+The hardware backdoor's essential function is to control the PLC's output to control the industrial physical system. The GPIO pins on the microcontroller either sensing the inputs or controls the outputs of the PLC.
+
+For our target LM3S2793, the GPIO module comprises nine physical GPIO blocks, each corresponding to an individual GPIO port. Depending on the microcontroller's configuration, it supports up to 67 programmable input/output pins or several GPIOs grouped compose of a peripheral function such as I2C, and the GPIO ports can be accessed either through AHB or APB bus.  Each GPIO port has several associated control registers, such as GPIO Digital Enable (GPIODEN), GPIO Alternate Function Select (GPIOAFSEL), GPIO Port Control (GPIOPCTL), and GPIO Data Control registers. All GPIO pins are configured as GPIOs and tri-stated by default.
+
+We primarily operate on the GPIO Data control registers. The GPIO Direction (GPIODIR) register configures each pin as an input or output, which should not be changed for the PLC's IO. The GPIO Data (GPIODATA) register modifies individual bits in GPIO ports. Different microcontrollers have their own operating methods on GPIOs, such as Output Data Register (ODR), Bit Reset Register (BRR), Bit Set/Reset Register (BSRR)~\cite{cottle2001programmable}. On LM3S2793, to modify individual GPIO pins in a single instruction without affecting the other pins' state, the operation on GPIODATA is not intuitive. Instead of each bit representing a GPIO pin,  it uses bits [9:2] of the address as a mask. Bits[1:0] are always zero because the memory access should be at 4-byte alignment on ARM.  For each GPIO port, it needs the memory range from GPIODATA to GPIODATA + 0x3FC to operate. If the address bit associated with that data bit is set during a write, the GPIODATA register's bit is altered. If the address bit is cleared, then the data bit is left unchanged.
+
+For example, GPIO Port A (AHB) is at 0x40058000, and we want to set its bit-2 to 0 and bit-5 to 1. As shown in~\autoref{gpiowrite}, the address mask is 0x90, and the value we write is 0xF0.  Therefore, we need to write a value of 0xF0 to the address 0x40058090.
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/gpiowrite2}
+	\centering
+	\caption{GPIODATA Write Example. Writing a value of 0xF0 to the address GPIODATA + 0x090 has the bit-2 unset and bit-5 set in GPIODATA register where \textbf{u} indicates that data is unchanged by the write. Because of the mask, for example, writing 0xF0 or writing 0x2B has the same effect.}
 	\label{fig:gpiowrite}
 \end{figure}
 
-During a read, if the address bit associated with the data bit is set, the value is read. If the address bit associated with data bit is cleared, the data bit is read as a zero, regardless of its actual value. For example, the result for reading address GPIODATA + 0x0C4 is shown in~\autoref{fig:gpioread}.
+
+
+To read a GPIO port, if the address bit associated with the data bit is set, the value is read. If the address bit associated with the data bit is cleared, the data bit is read as a zero, regardless of its actual value. For instance, we read GPIO Port A's high 4 bits. As shown in~\autoref{fig:gpioread}, the address mask is 0x3C0, and read address 0x400583C0 yields 0xA0.
+
 
 \begin{figure}[th]
-	\includegraphics[width=0.37\textwidth]{figures/gpioread}
+	\includegraphics[width=0.47\textwidth]{figures/gpioread2}
 	\centering
-	\caption{GPIODATA Read Example~\cite{lm3s2793}}
+	\caption{GPIODATA Read Example. Reading address GPIODATA+0x3C0 returns the high 4 bits of the GPIO port because the address mask for the low 4 bits is all zeros.}
 	\label{fig:gpioread}
 \end{figure}
 
