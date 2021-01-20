@@ -305,34 +305,35 @@ After initialization, \autoref{fig:ledi2csend} shows how to control the LEDs. Fo
 
 
 
-\subsubsection{Connections Between Modules}
 
-To answer the question who update the compiled ladder logic code to the real-time microcontroller, we need to further know about how the module are connected. Of all the connectors, the one connecting module B and module C is the most important, as shown in~\autoref{fig:board}. 
+
+\textbf{\textit{Onboard Connectors.}}
+
+There are several connectors on the module \textbf{B}, as shown in~\autoref{fig:board}. P607 is the one that connects to the communication board (module \textbf{B}), and p609 connects to the power board (module \textbf{A}). We comprehend some of these pins' function through continuity tests with a multimeter, as shown in~\autoref{fig:p607}. In addition to the I2C bus, there is also a CAN bus passing through this connector. In this way, both module \textbf{B} and module \textbf{C} connect to the same CAN bus connector as shown at the bottom of~\autoref{fig:board}. On the microcontroller LM3S2793, the other end is the CAN0 device with pin PA6 and PA7. However, the communication board has higher authority; it can prohibit signal transmission on RxD (pin 21) by setting pin 29 to 1.
 
 \begin{figure}[th]
-	\includegraphics[width=0.47\textwidth]{figures/board}
+	\includegraphics[width=0.47\textwidth]{figures/board2}
 	\centering
-	\caption{The Real-time Module}
+	\caption{The real-time board reads the inputs, runs compiled ladder logic binary, and drives the outputs. It is the board that interconnects all other modules. Besides the microcontroller and the flash memory, there are power regulators and IO chips. The optically coupled isolators prevent high voltages from affecting the microcontroller receiving the signal, and the power switches provide the electrical connection between the output pin and the voltage source.}
 	\label{fig:board}
 \end{figure}
 
-Because the communication module B is responsible for communicating with SCADA system and transmitting new data to the real-time module C in a timely manner. With some reverse engineering effort, we figured out the function of most of the pins of this proprietary interface, as shown in~\autoref{fig:p607}.
 
 \begin{figure}[th]
-	\includegraphics[width=0.47\textwidth]{figures/p607}
+	\includegraphics[width=0.47\textwidth]{figures/p607_2}
 	\centering
-	\caption{Connector between Module B and Module C (p607)}
+	\caption{The connector between the communication board (module \textbf{B}) and real-time board (module \textbf{C}) comprises the I2C bus and CAN bus. }
 	\label{fig:p607}
 \end{figure}
 
-As mentioned earlier, on module C, there is a AT45DB21E flash chip. It connects to the microcontroller through SSI0. And it contains one copy of code that will be loaded in once the microcontroller is caught in an unrecoverable error. But by analyzing this interface, we found that the communication module B is not connected to this AT45DB21E flash chip. So we think the code in it is just the backup code used to recover from the fatal error state, and the updated compiled ladder logic is updated by other means.  
-
-By reverse engineering the circuit board and firmware, we identified pin 24 and pin 25 of the connector as the SCL and SDA pin of I2C bus, as shown in~\autoref{fig:p607}. The microcontroller LM3S2793's PAxx PAxx connects LED module E through the communication module B, as shown in~\autoref{fig:modules}.
-
-We also identified that pin 21 and pin 22 are used as CAN bus input and output that come from the communication module B. And pin 29 is used to disable the CAN bus receive signal (RxD). On the CompactLogix PLC 1766, there is only one set of CAN bus for connecting modules. It located on the side of the PLC, it's part of the real-time module, as shown in~\autoref{fig:board}.
-
-
-Both the communication module B and real-time module C are connected to this bus.
+%As mentioned earlier, on module C, there is a AT45DB21E flash chip. It connects to the microcontroller through SSI0. And it contains one copy of code that will be loaded in once the microcontroller is caught in an unrecoverable error. But by analyzing this interface, we found that the communication module B is not connected to this AT45DB21E flash chip. So we think the code in it is just the backup code used to recover from the fatal error state, and the updated compiled ladder logic is updated by other means.  
+%
+%By reverse engineering the circuit board and firmware, we identified pin 24 and pin 25 of the connector as the SCL and SDA pin of I2C bus, as shown in~\autoref{fig:p607}. The microcontroller LM3S2793's PAxx PAxx connects LED module E through the communication module B, as shown in~\autoref{fig:modules}.
+%
+%We also identified that pin 21 and pin 22 are used as CAN bus input and output that come from the communication module B. And pin 29 is used to disable the CAN bus receive signal (RxD). On the CompactLogix PLC 1766, there is only one set of CAN bus for connecting modules. It located on the side of the PLC, it's part of the real-time module, as shown in~\autoref{fig:board}.
+%
+%
+%Both the communication module B and real-time module C are connected to this bus.
 
 
 \subsection{Remote Control}
