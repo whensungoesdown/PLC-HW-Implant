@@ -202,105 +202,107 @@ There are 16 inputs and 16 outputs on the front panel. Through reverse engineeri
 The PLC periodically scans the input, runs ladder logic, and updates output accordingly. It is called one scan cycle and implemented through a timer in the microcontroller. Following the timer handler routine, it is trivial to find the compiled ladder logic binary, and there are a few local variables that control its behavior. One local variable records if any logic state has changed. If so, the corresponding out GPIO port will be updated. We modify this local variable so that the output will not be updated from the ladder logic. Thus out attack can change the output arbitrarily without modifying the logic state. Doing so will not trigger any alarms.
 
 
+\subsection{Other Onboard Components and Interconnections}
 
-\subsection{Onboard Components Interconnection}
-Knowing how the real-time controller controls IO module, how to attack attack through the JTAG interface, we hope to learn more about the other chips on the board and how the different backplanes are related. We found that no other chips are daisy chained together with LM3S2793 via JTAG, so we need more reverse engineering work.
+The methods mentioned above can satisfy a basic attack. To implement more complex attacks, we studied other components on the PLC boards.
 
-\subsubsection{AT45DB021E SPI Serial Flash Memory}
-Right next to the LM3S2793 microcontroller, there is a flash chip, "adesto 45DB021E SHN" printed on it. It's a 2-Mbit SPI serial flash memory chip. According to the pin diagram of the LM3S2793 and AT45DB021E and the multimeter connectivity test, we found that the flash chip is connected to the SSI0 (Synchronous Serial Interface) of LM3S2793 as shown in~\autoref{fig:ssi0}.
+\textbf{\textit{AT45DB021E SPI Flash Memory.}} There is an 8-pin chip
+next to the LM3S2793 microcontroller. It is an Adesto 45DB021E 2-Mbit SPI flash memory chip and connected to the Synchronous Serial Interface (SSI0) of the microcontroller, as shown in ~\autoref{fig:ssi0}.
+
+
+%Knowing how the real-time controller controls IO module, how to attack attack through the JTAG interface, we hope to learn more about the other chips on the board and how the different backplanes are related. We found that no other chips are daisy chained together with LM3S2793 via JTAG, so we need more reverse engineering work.
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/ssi0}
 	\centering
-	\caption{LM3S2793 SSI0 Pins Connect to AT45DB21E SPI Serial Flash Memory}
+	\caption{AT45DB21E SPI Flash Memory connects to LM3S2793's SSI0 interface. The pins on the 8-pin solder pad are also referenced in the firmware, but the device is not installed. It could be four LED indicators.}
 	\label{fig:ssi0}
 \end{figure}
 
-Also, at the beginning of the firmware initialization, right after copy part of the inner flash to RAM as we mentioned earlier, by associating GPIO port A and SSI0, the firmware first read a byte from the flash chip (at offset 0x2000). This byte is stored at address 0x20000F50. If the value of this byte is 0x55 or 0xAA, the firmware will reset the system, otherwise it will verify the firmware integrity from memory 0x4000 to 0x1FFFC. 
+%Also, at the beginning of the firmware initialization, right after copy part of the inner flash to RAM as we mentioned earlier, by associating GPIO port A and SSI0, the firmware first read a byte from the flash chip (at offset 0x2000). This byte is stored at address 0x20000F50. If the value of this byte is 0x55 or 0xAA, the firmware will reset the system, otherwise it will verify the firmware integrity from memory 0x4000 to 0x1FFFC. 
 
-The checksum is very simple. From 0x4000 to 0x1FFFC, accumulate each byte, and the final result is compared with the byte at 0x1FFFF. If they are equal, the check passes, otherwise, the firmware enters an infinite loop and keeps reset the watchdog.
+%The checksum is very simple. From 0x4000 to 0x1FFFC, accumulate each byte, and the final result is compared with the byte at 0x1FFFF. If they are equal, the check passes, otherwise, the firmware enters an infinite loop and keeps reset the watchdog.
 
-We can see that the variables saved in the external flash may indicate the state of the system's last run. Value 0x55 indicates something fatal happened. Right before it reset the system, the firmware setups 4 pins of GPIO port D as output and operates on it. We traced these 4 pins to a solder joint pad, as shown in~\autoref{fig:ssi0}, although this part is not installed.
+%We can see that the variables saved in the external flash may indicate the state of the system's last run. Value 0x55 indicates something fatal happened. Right before it reset the system, the firmware setups 4 pins of GPIO port D as output and operates on it. We traced these 4 pins to a solder joint pad, as shown in~\autoref{fig:ssi0}, although this part is not installed.
 
-Value 0xAA indicates that the firmware from 0x4000 to 0x1FFFF is corrupted. The firmware reloads the partial image from external flash chip (from offset 0x6100) and sets variable 0x20000F50 to 0, then resets the PLC. But this image from AT45DB021E is a default backup.
+%Value 0xAA indicates that the firmware from 0x4000 to 0x1FFFF is corrupted. The firmware reloads the partial image from external flash chip (from offset 0x6100) and sets variable 0x20000F50 to 0, then resets the PLC. But this image from AT45DB021E is a default backup.
+
+In the boot loader, after jumping to SRAM, GPIO port A is assigned to the device SSI0. Then the firmware reads one byte from the flash chip (at offset 0x2000). If it equals either 0x55 or 0xAA, the firmware resets the PLC. Otherwise, the firmware starts to verify the integrity of the memory range 0x4000 to 0x1FFFC, which is the compiled ladder logic. The verification algorithm is a simple checksum. Each byte in this range is accumulated, and the final result should be equal to the byte of 0x1FFFF.
+
+We think this byte in the flash memory represents the state of the last run.  A value of 0x55 indicates the system has encountered a severe error. The firmware then operates four pins from the GPIO port D, which leads to an empty 8-pin solder pad right next to the flash chip.  A value of 0xAA means that the ladder logic is corrupted, and data will be copied from the flash chip at offset 0x6100, which we believe is a backup.
+
+To read the AT45DB21E flash chip's content, we port its driver to the Teensy 3.2 board. The source code is available at the github~\footnote{https://github.com/whensungoesdown/at45db021\_teensy32}. 
 
 
-\subsubsection{Front Panel LED}
 
-There are four rows of LED lights on the front panel, and each two rows (8 LEDs in each row) indicates the status of the input and output ports. Under the plastic case, the LEDs are mounted on the module E, as shown in~\autoref{fig:modules}. Those LEDs is a intuitive representation of the current PLC status.
 
-There are two 24-pin chips also mounted on module E. Top-side marking says "PD9535". They are "Remote 16-bit I2C and SMBus, Low-Power I/O Expander"~\cite{pd9535}. It provides general-purpose remote I/O expansion for most microcontroller families via the I2C interface, SCL (serial clock) and SDA (serial data). Combined with the reverse engineering of the firmware, it can be determined that the two chips are connected to the microcontroller on the module B through I2C protocol. I2C is a serial protocol for two-wire interface to connect low-speed devices like microcontroller, EEPROM, A/D and D/A converters, I/O interface and other similar peripherals in the embedded systems~\cite{semiconductors2000i2c}.
+\textbf{\textit{Front Panel LED.}} There are four rows of LED lights on the PLC's front panel. Each LED shows individual input and output pins' status, which is an intuitive way for the administrator to check whether the device works properly. Underneath, the LED module \textbf{E} is controlled by the microcontroller through the I2C protocol~\cite{semiconductors2000i2c}. 
 
-The module C and E are connected by module D through a proprietary interface. LM3S2793 uses two pins of GPIO Port B (PB2 and PB3) for peripheral I2C0 as the SCL and SDA. PB2/I2C0SCL and PB3/I2C0SDA correspond to pin 5 and pin 6 in of the  proprietary interface, as shown in~\autoref{fig:p607}.
+There are two 24-pin PD9535 mounted on module \textbf{E}. They are Remote 16-bit I2C and SMBus, Low-Power I/O Expander~\cite{pd9535}, which provides general-purpose I/O expansion for microcontrollers via the I2C bus. 
 
-Each I2C slave device has a 7-bit address that needs to be unique on the bus. Some devices have fixed I2C address while others have few address lines which determin lower bits of the I2C devices on the bus with unique I2C address. For PD9535, three hardware pins are used to program and vary the fixed I2C address and allow up to eight devices to share the same bus. In our case, the addresses of thses two PD9535 slave devices on module E are 0x20 and 0x21 respectively. More specifically, 0x20 corresponds to the 16 LED lights of the input ports, 0x21 corresponds to the other 16 LED lights of the output ports. 
+Two pins of GPIO port B (PB2 and PB3) are used as SCL and SDA by the I2C0 device on the microcontroller. Because module \textbf{E} connects both module \textbf{C} and module \textbf{E}, the SCL and SDA are found from the connector, as shown in~\autoref{fig:p607}
 
-The PD9535 consists of two configuration, input port, output port and polarity inversion registers, each register has 8 bits. The master device can enable the I/Os as either inputs or output port by writing to the configuration port.
 
-I2C communication begins with a master device sending a start condition which is a high-to-low transition on the SDA while the SCL is high. After the start condition, the slave device address byte is sent, most significant bit first. The first 7 bits are the slave address, and the last bit of the byte is the data direction bit, 1 indicates reading, 0 indicates writing. Only the slave device the specific address will respond to this transmission and acknowledge the byte by pulling a low on the SDA during a SCL pulse. Following the successful acknowledgement of the address byte, the master device sends a command byte that is stored in the control register. Only the lowest 3 bits are used to state the operation and aforementioned 8 registers will be changed accordingly. The command byte is shown in the following table.
+I2C slave device on the bus has a 7-bit unique address.  In this case, the two PD9535 chips for controlling input and output LED lights are assigned address 0x20 and 0x21, respectively.  Each of them has eight internal registers, as shown in~\autoref{tab:i2ccommand}. As mentioned in~\autoref{sec:background}, following the successful acknowledgment of the address byte, the microcontroller sends the command byte to select an internal register. 
+
+Among the internal registers of PD9593, the configuration port registers configure the directions of the I/O pins. If a bit in this register is cleared to 0, the corresponding port pin is set as an output. The input port registers reflect the pins' incoming logic levels, regardless of whether the pin is defined as an input or an output by the configuration register. The output port registers set the outgoing logic levels of the pins. Since we use PD9593 to control LEDs, the pins are configured as outputs, and we do not need to read the input port registers. 
 
 \begin{center}
 	\begin{table}
-		\begin{tabular}{|c|c|c|} 
+		%\begin{tabular}{|c|@{}c@{}|c|c|} 
+		\begin{tabular}{|@{}>{\centering\arraybackslash}m{0.8cm}@{}|
+				@{}>{\centering\arraybackslash}m{3.25cm}@{}|
+				@{}>{\centering\arraybackslash}m{2.30cm}@{}|
+				@{}>{\centering\arraybackslash}m{1.5cm}@{}| }
 			\hline
-			\makecell{COMMAND \\BYTE} & REGISTER & OPERATION \\ [0.5ex] 
+			\makecell{CMD \\Byte} & Register & Protocol & \makecell{Power-up \\Default}\\
 			\hline
-			0x00 & Input Port 0 & Read \\ 
+			0x00 & Input Port 0 & Read byte & xxxx xxxx\\ 
 			\hline
-			0x01 & Input Port 1 & Read \\
+			0x01 & Input Port 1 & Read byte & xxxx xxxx\\
 			\hline
-			0x02 & Output Port 0 & Read/Write \\
+			0x02 & Output Port 0 & Read/Write byte & 1111 1111\\
 			\hline
-			0x03 & Output Port 1 & Read/Write \\
+			0x03 & Output Port 1 & Read/Write byte & 1111 1111\\
 			\hline
-			0x04 & Polarity Inversion Port 0 & Read/Write \\
+			0x04 & Polarity Inversion Port 0 & Read/Write byte & 0000 0000\\
 			\hline
-			0x05 & Polarity Inversion Port 1 & Read/Write \\
+			0x05 & Polarity Inversion Port 1 & Read/Write byte & 0000 0000\\
 			\hline
-			0x06 & Configuration Port 0 & Read/Write \\
+			0x06 & Configuration Port 0 & Read/Write byte & 1111 1111\\
 			\hline
-			0x07 & Configuration Port 1 & Read/Write \\
+			0x07 & Configuration Port 1 & Read/Write byte & 1111 1111\\
 			\hline
 		\end{tabular}
-		\caption{Control Register Command Byte}
+		\caption{PD9535 internal registers can be selected by the command byte. To control LEDs, we only need to operate the control and output registers and keep the two polarity inversion registers' default values.}
 		\label{tab:i2ccommand}
 	\end{table}
 \end{center}
 
 
-The following pseudo code uses aforementioned ROM API to initialize the I2C slave device for the output port LED lights.
 
-\begin{lstlisting}[style=code, caption={Pseud Code for Initializing the I2C Slave Device for the Ouput Port LED Lights}, captionpos=b]
-ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
-ROM_GPIOPinTypeI2C(0x40059000, 0xC);
-clock = ROM_sysCtlClockGet();
-ROM_I2CMasterInitExpClk(0x40020000, clock, TRUE);
-ROM_I2CMasterSlaveAddrSet(I2C0, 0x21, FALSE);
-ROM_I2CMasterDataPut(I2C0, 0x6);
-ROM_I2CMasterControl(I2C0, I2C_MASTER_CMD_BURST_SEND_START);
-while (ROM_I2CMasterBusy(I2C0)) {
-};
-ROM_I2CMasterDataPut(I2C0, 0x0);
-ROM_I2CMasterControl(I2C0, I2C_MASTER_CMD_BURST_SEND_COUNT);
-while (ROM_I2CMasterBusy(I2C0)) {
-};
-ROM_I2CMasterDataPut(I2C0, 0x0);
-ROM_I2CMasterControl(I2C0, I2C_MASTER_CMD_BURST_SEND_FINISH);
-while (ROM_I2CMasterBusy(I2C0)) {
-};
-\end{lstlisting}
+\autoref{fig:ledi2cinit} shows the pseudo-code that uses ROM API to initialize one of the I2C IO expanders on the LED panel.  It first enables the I2C module and set its clock, which should be the same as the microcontroller clock. After that, data is transferred by first setting the slave address using ROM\_I2CMasterSlaveAddrSet(). This function is also used to define whether the transfer is a read or a write. Then, the code calls the ROM\_I2CMasterDataPut() function with the data to send. The transaction starts when calling the ROMi\_I2CMasterControl(). In this case, 2 bytes of zero are sent to Configuration Port 0 and Port 1 sequentially, which sets the total 16 pins in output mode.
 
-After initialization, the following code shows how to control the 8 LEDs corresponding to the output port by sending a byte to Output Port 0. We send 0xFF, which means that 8 LEDs are lit.
-\begin{lstlisting}[style=code, caption={Pseud Code for Controlling LED Lights}, captionpos=b]
-ROM_I2CMasterDataPut(I2C0, 0x2);
-ROM_I2CMasterControl(I2C0, I2C_MASTER_CMD_BURST_SEND_START);
-while (ROM_I2CMasterBusy(I2C0)) {
-};
-ROM_I2CMasterDataPut(I2C0, 0xFF);
-ROM_I2CMasterControl(I2C0, I2C_MASTER_CMD_BURST_SEND_COUNT);
-while (ROM_I2CMasterBusy(I2C0)) {
-};
-\end{lstlisting}
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/ledi2cinit}
+	\centering
+	\caption{The pseudo-code for initializing the I2C IO expander for LED lights is disassembled from the firmware. To make it easier to understand, we use the actual macros for some parameters, and their actual value is not difficult to find from the header files the vendor released.}
+	\label{fig:ledi2cinit}
+\end{figure}
+
+
+
+After initialization, \autoref{fig:ledi2csend} shows how to control the LEDs. For instance, we send two bytes of 0xFF to the output port 0 and port 1, which lights up all 16 LEDs.
+
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/ledi2csend}
+	\centering
+	\caption{Each pin of the output port 0 and port 1 control one LED, respectively. Therefore two 0xFF will light all the 16 LEDs up. To only set one register, we also can call  ROM\_I2CMasterControl() with parameter I2C\_MASTER\_CMD\_SINGLE\_SEND.}
+	\label{fig:ledi2csend}
+\end{figure}
+
 
 
 \subsubsection{Connections Between Modules}
@@ -331,4 +333,7 @@ We also identified that pin 21 and pin 22 are used as CAN bus input and output t
 
 
 Both the communication module B and real-time module C are connected to this bus.
+
+
+\subsection{Remote Control}
 

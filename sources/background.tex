@@ -9,7 +9,7 @@ The term Industrial Control System (ICS) describes different control systems and
 
 With an embedded system solution, the choice of the microcontroller is various. Moreover, each system has its own specialized circuit board design around it. On the contrary, several major PLC vendors dominate the market so that only numerous models are widely used, and particular programming tool-chain such as ladder logic is used. Therefore, from the attacker's perspective, anyone who purchases the same-model PLC will have the exact hardware and software environment as the target system.
 
-The PLC has a firmware acting as the real-time operating system. It also provides library routines to operate on various I/O devices such as I2C and SPI. These routines may reside at fixed addresses of the ROM. The firmware loads the control logic, such as a compile ladder logic binary at bootstrap or each update initiated from the remote operator.
+The PLC has the firmware acting as the real-time operating system. It also provides library routines to operate on various I/O devices such as I2C and SPI. These routines may reside at fixed addresses of the ROM. The firmware loads the control logic, such as a compile ladder logic binary at bootstrap or each update initiated from the remote operator.
 
 The ladder logic programs are executed repeatedly in fixed intervals, called scan cycles. When the logic calls the firmware routines to toggle an output pin, it is carried out by setting/clearing a memory bit, which is the MMIO address corresponding to output pins, thus to the sockets of the I/O module. PLC usually has LEDs at the front panel to indicate the inputs and output pins' current status.
 
@@ -46,3 +46,7 @@ For system accesses, the access ports are AHP-AP, ABP-AP, and JTAG-AP. The AHB-A
 Because of this comprehensive debug ability that the ARM CoreSight DAP controller provides, our hardware implant can fully control it by connecting to the JTAG pins.
 
 
+\textbf{\textit{I2C}} is a serial protocol for a two-wire interface to connect low-speed devices like flash memory, I/O interfaces, and other similar peripherals in embedded systems. The I2C bus only has two wires called SCL and SDA (the third wire to ground). SCL is the clock line. It is used to synchronize all data transfers over the I2C bus. SDA is the data line. The SCL and SDA lines connect to all devices on the I2C bus.
+
+
+I2C communication begins with a master device sending a start condition, a high-to-low transition on the SDA while the SCL is high. After the start condition, the slave device address byte is sent. The first 7 bits are the slave address, and the last bit of the byte is the data direction bit, 1 indicates reading, 0 indicates writing.  After receiving this byte, only the slave that matches this address will continue with the transaction. It acknowledges the byte by pulling SDA low in the next SCL pulse. Having addressed the slave device, the master must now send out the internal location or register number inside the slave to read or write.  After that, the master can now send the data bytes, and the slave will automatically increment the internal register address after each byte. When the master finishes writing all data to the slave, it sends a stop sequence that completes the transaction.
