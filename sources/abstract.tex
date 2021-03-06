@@ -1,28 +1,18 @@
 %! TEX root = 'main.tex'
 \section{Abstract}
-\label{sec:abstract}
-%Advanced persistent threat (APT) is emerging threat that targeting servers and critical infrastructures.
-%Its core units commonly includes a stealthy backdoor. Backdoor techniques have various styles and has evolved from high-level software into low-level hardware. Comparing to software attacks, hardware backdoor is more difficult to spot due to the lack of previous examples of exposure. Silicon level attacks such as changing chip design is stealthier, but it needs planning ahead for many years. Circuit board level attacks, on the other hand, is still practical even after field deployment. The circuit board modification can be disguised as parts that was originally belonged to the device. 
-%
-%In this paper, we show how an after-deploy attack, performed by a personnel who have no domain-specific knowledge is feasible.We use extra circuit board that attached to the target device boards to interpret signals and to inject commands. A cellular chip was integrated to provide a remote control channel, which allows the attacker to organize distributed attacks simultaneously. The hardware implant will not trigger any existing firmware integrity inspection because the signal injection is done either in circuit level or through exposed interface on the board. We implement this attack in an Allen Bradley PLC and assemble a implant device. Experimental results show that our attacks work in real world scenario, show how several carefully selected target devices can bypass system security settings and compromise the power grid.
-%
+\label{sec:implant-abstract}
 
-%\subsection{Version 1}
-
-%Advanced persistent threat (APT) is an emerging threat that targeting computer systems and critical infrastructures. Its core is a stealthy backdoor that has evolved from high-level software into low-level hardware to achieve stealthiness. 
+%Critical infrastructures such as power grids are under emerging advanced persistent threat (APT) attacks. Because the infrastructures systems are automated and computer-controlled, and the programmable Logic Controllers (PLCs) are the neurons that control the physical system. A stealthy backdoor usually is the core of an APT attack, which allows the attacker to launch remote malicious operations. However, to achieve further stealthiness and bypass exited software mitigations, it needs to evolve from high-level software into low-level hardware.
 %
 %This paper presents a small-size parasitical hardware implant attached to a victim Programmable Logic Controller (PLC). It controls the PLC by modifying the digital signal or hijacking the various buses on the boards. This attack can be deployed either during the supply chain or stealthily installed in remote plants. The personnel who carry out the installation do not require domain-specific knowledge of PLC communication protocols or existed software mitigations. The hardware implant contains a cellular chip that provides the remote control channel, which allows the attacker to organize a multi-point distributed attack.
 %
-%We evaluate the hardware implant with state-of-the-art software security measures, and the result shows that the hardware side attack will not violate integrity checks and gains complete control of the target devices.
-%
+%We evaluate the hardware implant with state-of-the-art software security measures, and the result shows that the hardware side attack will not violate integrity checks and gains complete control of the target devices. 
 
-%\subsection{Version 2}
 
 Critical infrastructures such as power grids are under emerging advanced persistent threat (APT) attacks. Because the infrastructures systems are automated and computer-controlled, and the programmable Logic Controllers (PLCs) are the neurons that control the physical system. A stealthy backdoor usually is the core of an APT attack, which allows the attacker to launch remote malicious operations. However, to achieve further stealthiness and bypass exited software mitigations, it needs to evolve from high-level software into low-level hardware.
 
-This paper presents a small-size parasitical hardware implant attached to a victim Programmable Logic Controller (PLC). It controls the PLC by modifying the digital signal or hijacking the various buses on the boards. This attack can be deployed either during the supply chain or stealthily installed in remote plants. The personnel who carry out the installation do not require domain-specific knowledge of PLC communication protocols or existed software mitigations. The hardware implant contains a cellular chip that provides the remote control channel, which allows the attacker to organize a multi-point distributed attack.
+This paper presents a small-size parasitical hardware implant attached to a victim Programmable Logic Controller (PLC). It controls the PLC by modifying the digital signal or hijacking the various buses on the boards. This attack can be deployed either during the supply chain or stealthily installed in remote plants. The hardware implant contains a cellular chip that provides the remote control channel, which allows the attacker to organize a multi-point distributed attack.
 
 We evaluate the hardware implant with state-of-the-art software security measures, and the result shows that the hardware side attack will not violate integrity checks and gains complete control of the target devices. 
-
 
 

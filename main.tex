@@ -14,6 +14,9 @@
 %\usepackage{subfigure}
 \usepackage{subcaption} % better than package subfigure, supports textwidth
 \usepackage{graphicx}
+% for the paper \name that use \xspace
+\usepackage{xspace}
+
 %packages
 
 \input{common/preamble}
@@ -37,20 +40,22 @@
 %%\ccsPaper{9999} % TODO: replace with your paper number once obtained
 
 
+
 \title{Targeted Attacks against Cyber-Physical Infrastructures via Distributed Hardware Implants}
 
-\author{Mingbo Zhang, Saman Zonouz}
-\date{July 2019}
+
+%\author{Mingbo Zhang, Saman Zonouz}
+%\date{July 2019}
 
 \begin{document}
 
 
+\newcommand{\name}{\textsc{HardDoor}\xspace}
+
 \maketitle
 
 \input{sources/abstract}
-%\input{sources/introduction}
-%\section{abstract}
-\section{introduction}
+\input{sources/introduction}
 \input{sources/background}
 \input{sources/overview}
 \input{sources/relatedwork}
