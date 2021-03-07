@@ -281,7 +281,7 @@ Among the internal registers of PD9593, the configuration port registers configu
 
 
 
-\autoref{fig:ledi2cinit} shows the pseudo-code that uses ROM API to initialize one of the I2C IO expanders on the LED panel.  It first enables the I2C module and set its clock, which should be the same as the microcontroller clock. After that, data is transferred by first setting the slave address using ROM\_I2CMasterSlaveAddrSet(). This function is also used to define whether the transfer is a read or a write. Then, the code calls the ROM\_I2CMasterDataPut() function with the data to send. The transaction starts when calling the ROMi\_I2CMasterControl(). In this case, 2 bytes of zero are sent to Configuration Port 0 and Port 1 sequentially, which sets the total 16 pins in output mode.
+\autoref{fig:ledi2cinit} shows the pseudo-code that uses ROM API to initialize one of the I2C IO expanders on the LED panel.  It first enables the I2C module and sets its clock, which should be the same as the microcontroller clock. After that, data is transferred by first setting the slave address using ROM\_I2CMasterSlaveAddrSet(). This function is also used to define whether the transfer is a read or a write. Then, the code calls the ROM\_I2CMasterDataPut() function with the data to send. The transaction starts when calling the ROMi\_I2CMasterControl(). In this case, 2 bytes of zero are sent to Configuration Port 0 and Port 1 sequentially, which sets the total 16 pins in output mode.
 
 
 \begin{figure}[th]
@@ -309,7 +309,7 @@ After initialization, \autoref{fig:ledi2csend} shows how to control the LEDs. Fo
 
 \textbf{\textit{Onboard Connectors.}}
 
-There are several connectors on the module \textbf{B}, as shown in~\autoref{fig:board}. P607 is the one that connects to the communication board (module \textbf{B}), and p609 connects to the power board (module \textbf{A}). We comprehend some of these pins' function through continuity tests with a multimeter, as shown in~\autoref{fig:p607}. In addition to the I2C bus, there is also a CAN bus passing through this connector. In this way, both module \textbf{B} and module \textbf{C} connect to the same CAN bus connector as shown at the bottom of~\autoref{fig:board}. On the microcontroller LM3S2793, the other end is the CAN0 device with pin PA6 and PA7. However, the communication board has higher authority; it can prohibit signal transmission on RxD (pin 21) by setting pin 29 to 1.
+There are several connectors on the module \textbf{B}, as shown in~\autoref{fig:board}. P607 is the one that connects to the communication board (module \textbf{B}), and p609 connects to the power board (module \textbf{A}). We comprehend some of these pins' functions through continuity tests with a multimeter, as shown in~\autoref{fig:p607}. In addition to the I2C bus, there is also a CAN bus passing through this connector. In this way, both module \textbf{B} and module \textbf{C} connect to the same CAN bus connector as shown at the bottom of~\autoref{fig:board}. On the microcontroller LM3S2793, the other end is the CAN0 device with pin PA6 and PA7. However, the communication board has higher authority; it can prohibit signal transmission on RxD (pin 21) by setting pin 29 to 1.
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/board2}
@@ -338,3 +338,14 @@ There are several connectors on the module \textbf{B}, as shown in~\autoref{fig:
 
 \subsection{Remote Control}
 
+Typically, the PLC has a dedicated real-time microcontroller
+that handles IO, in this case, module \textbf{D}. It runs minimal code, mainly the compiled ladder logic.  To receive ladder logic update, the communication module \textbf{C} talks to the HMI and then update the real-time microcontroller through the CAN bus. Therefore, to remotely control the PLC's IO, the attacker needs to control further the communication module \textbf{C}, which itself is an independent system usually with a more powerful processor. Moreover, an abnormal traffic filtering mechanism~\cite{kim2016abnormal} also may be deployed to protect ICS networks. Even though we successfully controllers all the embedded system in the PLC and penetrates the network traffic monitors, we still have to face the challenge that a critical infrastructure may run on an isolated local network. Therefore, we choose to use a separate network using GSM.
+
+\begin{figure}[th]
+	\includegraphics[width=0.47\textwidth]{figures/sim800teensy}
+	\centering
+	\caption{The power can be drawn from the JTAG pad or directly from the border connector p607. Since the JTAG pad provides the 3 volts source, we also need a DC-DC voltage step-up module that boosts from 3 volts to 5 volts. One GPIO pin from Teensy connects the PWR pin of the SIM800C board. It is used to deliver the power and reset sequence. After SIM800C initialized, the Teensy module sends AT commands through the serial port.}
+	\label{fig:sim800teensy}
+\end{figure}
+
+The SIM800C is a Quad-Band GSM/GPRS module. It has strong extension capability with interfaces including UART, USB2.0, and GPIO. ~\autoref{fig:sim800teensy} shows that the SIM800C module connects with the Teensy board through a serial port. First, the Teensy boart initializes the cellular module using AT command, connecting to the network. Once a text message is received, the Teensy board reads it and looks for control commands. In such a case,  the command will be parsed as IO operations that eventually turn into particular memory read/write on PLC's GPIO port.
