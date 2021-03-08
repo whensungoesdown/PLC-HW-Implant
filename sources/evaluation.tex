@@ -2,32 +2,32 @@
 \section{Evaluation}
 \label{sec:implant-evaluation}
 
-\subsection{Physical Dimensions}
-Because our solution is hardware-based, the size of out hardware implant is important. This is different from software or firmware-based attacks.
+In this section, we evaluated several aspects of \name. Since it is a hardware backdoor, we need to measure its physical dimensions and appearance. We also evaluated the effects of \name on the PLC, including the impacts on the performance, memory storage, and power consumption.
 
-Although if we make our own circuit board to carry the relevant chip, the size of hardware implant can be minimized. But in this project, the parts we used for the prototype are all COTS (Commercial off-the-shelf) products. Mainly Teensy 3.2 board and GSM800C HAT board, and the comparison of their physical size with a Allen-bradley PLC's size is shown in~\autoref{fig:eval_size}.
+\texttt{\textbf{Dimensions and appearance.}} We use commercial off-the-shelf modules to build the prototype, namely the Teensy 3.2 development board and Waveshare SIM800C HAT. They are not the smallest in size. For example,  the SIM800C in SiP packaging with a minimal PCB board is much smaller. However, the SiP needs a voltage of 3.7 volts which a Lithium-Ion battery usually provides. GSM is an impulse type transmitting power, even though the average current is low, but the instantaneous current can reach more than 1.5A, so the board's external power supply is necessary. 
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/eval_size}
 	\centering
-	\caption{Test}
+	\caption{The Allen Bradley 1769-L18ER-BBIB CompactLogix
+	5370 PLC is in a 9.2cm x 13cm rectangle shape with sufficient space to contain the two bords and extra wires and connectors. The SIM800C HAT takes a full-size sim card, and the antenna takes much space.}
 	\label{fig:eval_size}
 \end{figure}
 
-We put all the parts together and put the complete hardware implant into the PLC, and connected the JTAG interface with the real-time microcontroller board. ~\autoref{fig:eval_a} shows that the PLC has enough space to let the hardware implant working properly. 
+~\autoref{fig:eval_size} shows the physical size of the two boards compared to the Allen Bradley PLC. Notice that the two main chips on each board are relatively small. Especially some WIFI chips~\cite{babiuch2019using}~\cite{artenstein2017broadpwn} also provide a microcontroller for general-purpose tasks, which the two chips can combine.  In that case, the hardware can further reduce its size. However, we can not shrink its physical size as small as invisible.  We argue that the more effective way to hide the hardware implant is to make it easily overlooked. It means to use customed PCB with the same color and same style connector attaching to the PLC's board. Because until today, there is very little information publicly available regarding those widely deployed PLCs.  Some good examples are the separate IPMI (Intelligent Platform Management Interface)~\cite{slaight2003using} and KVM (Board, Video, and Mouse)~\cite{kedziorek2007hpc} modules that usually mounted on the server's motherboards.
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/eval_a}
 	\centering
-	\caption{Test}
+	\caption{We cover the necessary parts using tape to prevent a short circuit. The \name connects to the PLC's microcontroller board's JTAG pad through a 10-pin socket and a long cable. The antenna for receiving GSM signal is also stuffed inside the PLC.}
 	\label{fig:eval_a}
 \end{figure}
 
-~\autoref{fig:eval_b1} and ~\autoref{fig:eval_b2} are the front and back images when we assembled the PLC. It is difficult to find our hardware implant from the appearance, because it is completely embedded in the PLC plastic case without any exposed parts. The PLC on the left is used for comparison, and the right one is equipped with a hardware implant
+~\autoref{fig:eval_a} shows that after wiring two boards and wrapping them with tape to prevent a short circuit, it is small enough to fit inside the PLC's plastic case. We connect the JTAG pads with GPIO pins from the Teensy board. One of the PLC we use for this experiment turns out to have a 10-pin socket soldered on the pad, but all other PLCs we own do not have such a setting. A novel design for easy installation avoiding soldering in the field and reliable connection with the JTAG pad is necessary. We consider this as one of our further works.
 
 \begin{figure}[tp]
 	\centering
-    \begin{subfigure}[b]{0.23\textwidth}
+    \begin{subfigure}[b]{0.22\textwidth}
     	\centering
 	\includegraphics[width=1\textwidth]{figures/eval_b2}
         \vspace{-0.15in}
@@ -35,7 +35,7 @@ We put all the parts together and put the complete hardware implant into the PLC
 		\label{fig:eval_b1}
 	\end{subfigure}
 %~\qquad
-	\begin{subfigure}[b]{0.23\textwidth}
+	\begin{subfigure}[b]{0.22\textwidth}
     	\centering
 	\includegraphics[width=1\textwidth]{figures/eval_b1}
         \vspace{-0.15in}
@@ -43,9 +43,11 @@ We put all the parts together and put the complete hardware implant into the PLC
 		\label{fig:eval_b2}
 	\end{subfigure}
     \vspace{-0.15in}
-	\caption{Two PLC}
+    \caption{The two figures are the Allen Bradley 1769-L18ER-BBIB CompactLogix 5370 PLC's front and back view, in which both the PLC on the right has the hardware implant installed. There is no significant difference from the appearance point of view, and no parts are exposed to the outside.}
 	\vspace{-0.15in}
 \end{figure}
+
+As shown in~\autoref{fig:eval_b}, the hardware implant is not noticeable from the PLC's outside appearance; no parts are exposed, it only seems to take up some space. However, heat dissipation may be a problem to be considered in the future.
 
 \subsection{Performance}
 
