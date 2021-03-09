@@ -4,7 +4,8 @@
 
 In this section, we evaluated several aspects of \name. Since it is a hardware backdoor, we need to measure its physical dimensions and appearance. We also evaluated the effects of \name on the PLC, including the impacts on the performance, memory storage, and power consumption.
 
-
+The model PLC is the Allen Bradley 1769-L18ER-BBIB CompactLogix
+5370, which is equipped with a TI Stellaris LM3S2793 microcontroller. The microcontroller is based on ARM Cortex-M3 architecture and operates at 80MHz. It has 128KB single-cycle flash memory and 64KB single-cycle SRAM. The PLC has 16 DC digital inputs and 16 DC digital outputs, which eventually corresponds to the microcontroller's GPIO port.
 
 \texttt{\textbf{Dimensions and appearance.}} We use commercial off-the-shelf modules to build the prototype, namely the Teensy 3.2 development board and Waveshare SIM800C HAT. They are not the smallest in size. For example,  the SIM800C in SiP packaging with a minimal PCB board is much smaller. However, the SiP needs a voltage of 3.7 volts which a Lithium-Ion battery usually provides. GSM is an impulse type transmitting power, even though the average current is low, but the instantaneous current can reach more than 1.5A, so the board's external power supply is necessary. 
 
@@ -64,8 +65,14 @@ As shown in~\autoref{fig:eval_b}, the hardware implant is not noticeable from th
 
 Nevertheless, the debug functionality provided in LM3S2793 is as CoreSight components. It provides real-time access for the debugger without halting the processor to AMBA system memory, peripheral registers, and all debug configuration registers. Therefore \name can modify the GPIO through the AHB bus without any software overhead.
 
-Also, the external or timer interrupt may be delayed for a few clock cycles when encountering JTAG related operations. However, \name has no operation when in standby mode, and controls on IO only take a few memory reads/writes.  The resulting performance overhead is generally negligible.
+Also, the external or timer interrupt may be delayed for a few clock cycles when encountering JTAG related operations. However, \name has no operation when in standby mode, and controls on IO only take a few memory reads/writes. Furthermore, we regulate our attacking operations at a low pace not to jam the system.  The resulting performance overhead is generally negligible, as shown in~\autoref{fig:exetime}.
 
+\begin{figure}[h]
+	\includegraphics[width=0.47\textwidth]{figures/exetime}
+	\centering
+	\caption{To accumulate execution time, we use a counter in the ladder logic and use an output signal to indicate the begin/end time of the test. During the standby test, \name has attached the PLC, but no command is sent. We alter the PLC's output every 500ms to imitate a malicious operation for the attack test.}
+	\label{fig:exetime}
+\end{figure}
 
 \texttt{\textbf{Memory Consumption.}} \name neither occupies flash memory to reside on the system nor take SRAM during the runtime. Even when it is controlling IO, the operations are performed on memory-mapped IO for GPIO ports. Therefore, the memory consumption for \name is zero.
 
