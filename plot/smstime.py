@@ -8,10 +8,10 @@ standard = (12.8, 14.4, 20.0, 28.0, 48.0, 80.8)
 overhead = (0, 0, 0, 0, 0, 0)
 err = (1.32, 0.49, 1.09, 2.89, 1.41, 10.4) 
 ind = np.arange(N)    # the x locations for the groups
-width = 0.45       # the width of the bars: can also be len(x) sequence
+width = 0.35       # the width of the bars: can also be len(x) sequence
 
 #p1 = plt.bar(ind, standard, width, color='orange', edgecolor='orange', yerr=err, ecolor='gray')
-p1 = plt.bar(ind, standard, width, color='orange', yerr=err, ecolor='gray')
+p1 = plt.bar(ind, standard, width, color='#7f6d5f', yerr=err, ecolor='gray')
 
 plt.ylabel('SMS Transmission Time (seconds)')
 #plt.title('test')
@@ -32,7 +32,7 @@ ax.yaxis.set_major_locator(MultipleLocator(10))
 #ax.xaxis.set_minor_locator(AutoMinorLocator(5))
 ax.yaxis.set_minor_locator(AutoMinorLocator(5))
 ax.grid(which='major', color='#CCCCCC', linestyle='--')
-ax.grid(which='minor', color='#CCCCCC', linestyle=':')
+#ax.grid(which='minor', color='#CCCCCC', linestyle=':')
 
 
 
