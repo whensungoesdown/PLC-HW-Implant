@@ -1,5 +1,5 @@
 %! TEX root = 'main.tex'
-\section{Experiment}
+\section{Experiment and Design}
 \label{sec:implant-experiment}
 
 \subsection{Reverse Engineering}
@@ -336,7 +336,7 @@ There are several connectors on the module \textbf{B}, as shown in~\autoref{fig:
 %Both the communication module B and real-time module C are connected to this bus.
 
 
-\subsection{Remote Control}
+\subsection{Design}
 
 Typically, the PLC has a dedicated real-time microcontroller
 that handles IO, in this case, module \textbf{D}. It runs minimal code, mainly the compiled ladder logic.  To receive ladder logic update, the communication module \textbf{C} talks to the HMI and then update the real-time microcontroller through the CAN bus. Therefore, to remotely control the PLC's IO, the attacker needs to control further the communication module \textbf{C}, which itself is an independent system usually with a more powerful processor. Moreover, an abnormal traffic filtering mechanism~\cite{kim2016abnormal} also may be deployed to protect ICS networks. Even though we successfully controllers all the embedded system in the PLC and penetrates the network traffic monitors, we still have to face the challenge that a critical infrastructure may run on an isolated local network. Therefore, we choose to use a separate network using GSM.
