@@ -3,22 +3,21 @@
 \label{sec:implant-experiment}
 
 \subsection{Reverse Engineering}
-The PLC we use in this paper is Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370. The reverse engineering process consists of two parts. The hardware part is primarily wire tracing, and the software part is to analyze the disassembly of the dumped firmware.
+The PLC we use is Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370.
+The reverse engineering work includes both the hardware and software parts. First, we speculate on the function of each board of the PLC. Then we identify the on-board IC chips and use a multimeter to conduct the connectivity test for wire tracing. The purpose of this is to find the interconnections between chips and between boards. Fortunately, the real-time module is a two-side PCB, and the wire connectors that pass through the board are well exposed, as seen in~\autoref{fig:ssi0}. Furthermore, we dump the firmware from the microcontroller and flash chip for reverse-engineering analysis.
 
-First, we need to determine each module in the PLC and check the microcontroller model and other essential IC chips. Next, we need to dump the firmware from the microcontroller and other chips.
 
-\textbf{\textit{Backplanes.}} The Allen-Bradley CompactLogix 5370 contains several PCB module boards, known as backplanes. ~\autoref{fig:modules} shows that it contains one communication module, one real-time controller module, DC digital input/output module, and the power supply module. They are interconnected through proPrutoref{tab:memorymap} shows the memory map.ietary sockets.
+\textbf{\textit{Backplanes.}} The Allen Bradley PLC contains several PCB module boards, known as backplanes. ~\autoref{fig:modules} shows each module. In this paper, we name the board with the Ethernet socket and USB port as the communication module (\textbf{B}).  The one controls that has a microcontroller and controls the 16 digital DC input pins and 16 digital DC output pins as the real-time module {\textbf{C}}, which is our main target. Module \textbf{D} is merely a connector for the digital IO. The rest are the power supply module(\textbf{A}) and LED module(\textbf{E}).
 
-The communication module \textbf{B} itself is a complete embedded system, including a CPU, DRAM, and other peripherals such as ethernet, SD card socket, and USB port. Its function is to communicate with the host to update firmware and ladder logic, and it also contains a web server. On the one hand, this module is not the one that controls IO, not our target. On the other hand, two FPGA chips are used to implement the processor and other peripheral devices such as the ethernet controller, making it very difficult to find the JTAG interface.
 
-We focus on the real-time controller, which mainly executes the compiled ladder logic and controls the IO accordingly. Fortunately, the module uses a commercial microcontroller, Stellaris LM3S2793 SoC from Texas Instruments.
+The communication module (\textbf{B}) itself is an embedded system, including a CPU, DRAM, and other peripherals such as Ethernet, SD card, and USB.  It communicates with the host (HMI) to receive firmware and ladder logic updates, and it also hosts a web server to display status. However, this module does not directly interact with IO. By analyzing the PLC firmware update files, we find that this board runs VxWorks operating system. Nevertheless, this board's primary chip is an FPGA~\cite{kuon2008fpga} chip that runs a soft-core ARM processor, and it is in BGA packaging. It is not easy to trace and identify which GPIO pins of the FPGA are used as the JTAG interface. We consider it as one of our further works. Therefore, our focus is the real-time module (\textbf{C}) that runs ladder logic and directly controls IO. Fortunately, this module uses a commercial microcontroller, namely, Texas Instruments Stellaris LM3S2793 SoC.
 
-The IO module \textbf{D} has 16 inputs and 16 outputs socket, connecting to the real-time module \textbf{B}, through power switch and optically coupled isolator chips, eventually connected to the pins of the microcontroller. The LED module \textbf{E} contains LED lights for each IO socket and the status indicator of the PLC. Its wire goes through the communication module's PCB board and connects to the real-time module. Instead of directly connects each LED light, the microcontroller controls the LED module through the I2C protocol. The power module \textbf{A} provides stable 3 volts for other boards. The backdoor implant can either get power directly from it or the JTAG pad on the real-time module.
+The digital IO sockets on the connector module (\textbf{D}) connects to the real-time module (\textbf{B}). The IO goes through the power switches and optically coupled isolator chips and eventually connects to the microcontroller, as shown in~\autoref{fig:board}. There are 32 LEDs corresponds to each IO socket, and the real-time module also controls the LED module through the I2C protocol. The power module (\textbf{A}) provides stable 3 volts for other boards. Our backdoor can either get power directly from it or the JTAG pad.
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/modules}
 	\centering
-	\caption{Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370 PLC. A: Power supply module  B: Communication module  C: Real-time module  D: (16) DC Digital Outputs \& (16) DC Digital Inputs  E: LED indicator module}
+	\caption{Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370 PLC. A: Power supply module  B: Communication module  C: Real-time module  D: (16) DC Digital Outputs \& (16) DC Digital Inputs Connector  E: LED  module}
 	\label{fig:modules}
 \end{figure}
 
@@ -30,15 +29,22 @@ The IO module \textbf{D} has 16 inputs and 16 outputs socket, connecting to the 
 
 \begin{center}
 	\begin{table}
-		\begin{tabular}{|p{1.6cm} p{1.6cm} p{4cm}|} 
+		\begin{tabular}{|p{1.6cm}  p{1.6cm}  p{4cm}|} 
 			\hline
-			Start & End & Description \\ [0.5ex] 
+			%Start & End & Description \\ [0.5ex] 
+			Start & End & Description \\ 
+			\hline
+			\textbf{Memory} & & \\
 			\hline
 			0x00000000 & 0x0001FFFF & On-chip Flash \\ 
 			\hline
 			0x00020000 & 0x00FFFFFF & Reserved \\
 			\hline
-			0x01000000 & 0x1FFFFFFF & Reserved for ROM \\
+			0x01000000 & 0x01004FFF & On-chip ROM  \\
+			\hline
+			0x01005000 & 0x01005EFF & AES+CRC lib in on-chip ROM   \\
+			\hline
+			0x01005F00 & 0x1FFFFFFF & Reserved \\ 
 			\hline
 			0x20000000 & 0x2000FFFF & Bit-banded on-chip SRAM \\
 			\hline
@@ -48,6 +54,12 @@ The IO module \textbf{D} has 16 inputs and 16 outputs socket, connecting to the 
 			\hline
 			0x22200000 & 0x3FFFFFFF & Reserved \\
 			\hline
+			0x40000000 & 0x4001FFFF & \textbf{FiRM Peripherals} \\  
+			\hline
+			0x40020000 & 0xDFFFFFFF  & \textbf{Peripherals} \\
+			\hline
+			0xE0000000 & 0xFFFFFFFF & \textbf{Private Peripheral Bus} \\
+			\hline
 		\end{tabular}
 		\caption{LM3S2793 Memory Map}
 		\label{tab:memorymap}
@@ -55,11 +67,10 @@ The IO module \textbf{D} has 16 inputs and 16 outputs socket, connecting to the 
 \end{center}
 
 
+\textbf{\textit{Reset Vector.}} The vector table is at a fixed address 0x00000000 after the system reset. The core starts to execute from memory 0x00000004, which is the reset vector. ~\autoref{tab:memorymap} shows that the reset vector resides in the flash memory instead of the ROM. It is because the ROM boot loader is only executed in two scenarios. The first case is when the flash memory is empty. The other one is when an application initiates a firmware update and calls the ROM boot loader to execute. For instance, if data at 0x00000004 is 0xFFFFFFFF, which indicates an empty flash, then the ROM is mapped to 0x00000000 to substitute the flash and execute instead. 
 
-\textbf{\textit{Reset Vector.}} The vector table is fixed at address 0x00000000 on system reset. Once a core is out of reset sequence, it starts executing from memory address 0x00000004, the reset vector.  From the memory map, the reset vector resides in the flash memory instead of the ROM. The reason is that the ROM boot loader is only used as an initial program loader when the flash memory is empty and as an application-initiated firmware upgrade mechanism. For instance, if the data at address 0x00000004 is 0xFFFFFFFF, the ROM is mapped to address 0x00000000, and execution continues out of the ROM boot loader. If there is data at address 0x00000004 that is not 0xFFFFFFFF, the stack pointer (SP) is loaded from Flash memory at address 0x00000000 and the program counter (PC) is loaded from address 0x00000004. The firmware then begins executing from the flash memory.
+The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP) and the program counter (PC), respectively. In our case, the SP is 0x20000B48, and the PC is 0x000000E3. Notice that 0xE3 is an odd number. As we know, RISC processors such as ARM uses fixed-length instruction. On ARM processors, setting the PC's least significant bit indicates that the following code will be executed as the two-byte Thumb instructions. Therefore, we dump the flash memory and disassemble it at address 0x000000E2 instead.
 
-
-In our case, the SP value is 0x20000B48, and the PC is 0x000000E3. Notice that 0xE3 is an odd number, ARM is a RISC architecture that uses a fixed-length instruction encoding format which uses four bytes instruction for the 32-bit processor. Certainly, the least significant bit indicates that the next branch uses Thumb instructions. Therefore we dump the flash memory and start to disassemble at address 0x000000E2.
 
 \textbf{\textit{Flash boot loader.}} The SRAM is at 0x20000000. The flash boot loader copies itself to SRAM memory right after it starts, in consideration of performance. Even though the SRAM and flash memory can both be accessed in a single cycle, the manual says that the flash memory only can do that as long as the code is linear and branches incur a one-cycle stall. 
 
