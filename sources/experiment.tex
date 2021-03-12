@@ -271,26 +271,26 @@ Each I2C slave device on the same bus has a unique 7-bit address. In our example
 \end{center}
 
 
+\autoref{fig:ledi2cinit} shows the pseudo-code to initialize the I2C IO expander using the ROM API. It first enables the I2C master device and sets the clock frequency to be the same as the microcontroller. After that, call ROM\_I2CMasterSlaveAddrSet() to select the target device's address, whether to send or receive data. Then call ROM\_I2CMasterDataPut() to set the data to be sent next. Only after calling ROMi\_I2CMasterControl(), the data will be sent out. In our example, two bytes with content zero are sent to Configuration Port0 and Port1. This operation sets a total of 16 pins as output mode.
 
-\autoref{fig:ledi2cinit} shows the pseudo-code that uses ROM API to initialize one of the I2C IO expanders on the LED panel.  It first enables the I2C module and sets its clock, which should be the same as the microcontroller clock. After that, data is transferred by first setting the slave address using ROM\_I2CMasterSlaveAddrSet(). This function is also used to define whether the transfer is a read or a write. Then, the code calls the ROM\_I2CMasterDataPut() function with the data to send. The transaction starts when calling the ROMi\_I2CMasterControl(). In this case, 2 bytes of zero are sent to Configuration Port 0 and Port 1 sequentially, which sets the total 16 pins in output mode.
 
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/ledi2cinit}
 	\centering
-	\caption{The pseudo-code for initializing the I2C IO expander for LED lights is disassembled from the firmware. To make it easier to understand, we use the actual macros for some parameters, and their actual value is not difficult to find from the header files the vendor released.}
+	\caption{The pseudo-code to initialize the I2C IO expander is reversed-engineered from the firmware. To make it more intuitive, we use some macro definitions as parameters. These macros' actual value is not difficult to find in the header files released by the vendor. The code is provided to help understand how to control the LED lights on the PLC through the I2C bus.}
 	\label{fig:ledi2cinit}
 \end{figure}
 
 
 
-After initialization, \autoref{fig:ledi2csend} shows how to control the LEDs. For instance, we send two bytes of 0xFF to the output port 0 and port 1, which lights up all 16 LEDs.
+After initialization, \autoref{fig:ledi2csend} shows how to control the LEDs. For example, we send two bytes with content 0xFF to the Output Port0 and Port1, lighting up 16 LED lights controlled by this device.
 
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/ledi2csend}
 	\centering
-	\caption{Each pin of the output port 0 and port 1 control one LED, respectively. Therefore two 0xFF will light all the 16 LEDs up. To only set one register, we also can call  ROM\_I2CMasterControl() with parameter I2C\_MASTER\_CMD\_SINGLE\_SEND.}
+	\caption{Each pin in the Output register controls an LED light separately, so two 0xFF bytes can control 16 LEDs. If we only want to control a few of the LED lights in one register, we can call ROM\_I2CMasterControl() with parameter I2C\_MASTER\_CMD\_SINGLE\_SEND.}
 	\label{fig:ledi2csend}
 \end{figure}
 
@@ -298,14 +298,16 @@ After initialization, \autoref{fig:ledi2csend} shows how to control the LEDs. Fo
 
 
 
-\textbf{\textit{Onboard Connectors.}}
 
-There are several connectors on the module \textbf{B}, as shown in~\autoref{fig:board}. P607 is the one that connects to the communication board (module \textbf{B}), and p609 connects to the power board (module \textbf{A}). We comprehend some of these pins' functions through continuity tests with a multimeter, as shown in~\autoref{fig:p607}. In addition to the I2C bus, there is also a CAN bus passing through this connector. In this way, both module \textbf{B} and module \textbf{C} connect to the same CAN bus connector as shown at the bottom of~\autoref{fig:board}. On the microcontroller LM3S2793, the other end is the CAN0 device with pin PA6 and PA7. However, the communication board has higher authority; it can prohibit signal transmission on RxD (pin 21) by setting pin 29 to 1.
+\textbf{\textit{Onboard Connectors.}} There are several connectors on the real-time module \textbf{C}, as shown in ~\autoref{fig:board}. P607 connects to the communication module \textbf{B} and P609 connects to the power module \textbf{A}. Usually, we think that the module \textbf{A} is just a power module responsible for providing three volts to others. However, this is a good place for purposefully damage the PLC by a short circuit, where the power flow is large.
+
+By conducting the connectivity tests with a multimeter, we perceive some pins' function in P607 as shown in~\autoref{fig:p607}. As mentioned earlier, the I2C bus passes through this connector. Besides, the CAN bus also passes through this connector. In this way, both the communication module and the real-time module are connected to the CAN bus connector in the bottom right corner in ~\autoref{fig:board}. These two modules can not only control the external CAN bus device, but they can also communicate via the CAN bus themself. However, the communication module has a higher priority. Setting pin29 on the P607 connector can block the transmission of the signal on pin21, which is the CAN bus's RxD signal line. On the microcontroller side, the master device CAN0 uses the PA6 and PA7 pins. 
+
 
 \begin{figure}[th]
-	\includegraphics[width=0.47\textwidth]{figures/board2}
+	\includegraphics[width=0.47\textwidth]{figures/board3}
 	\centering
-	\caption{The real-time board reads the inputs, runs compiled ladder logic binary, and drives the outputs. It is the board that interconnects all other modules. Besides the microcontroller and the flash memory, there are power regulators and IO chips. The optically coupled isolators prevent high voltages from affecting the microcontroller receiving the signal, and the power switches provide the electrical connection between the output pin and the voltage source.}
+	\caption{The real-time module reads the input signals, runs the ladder logic, and then drives the output signal according to the result. Therefore this module needs to be connected to all other modules. In addition to the microcontroller and the flash memory, there are power regulators and IO chips on this module. The optically coupled isolators prevent high voltages from affecting the microcontroller when receiving the signal, and the power switches provide the electrical connection between the output pin and the voltage source.}
 	\label{fig:board}
 \end{figure}
 
@@ -313,7 +315,7 @@ There are several connectors on the module \textbf{B}, as shown in~\autoref{fig:
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/p607_2}
 	\centering
-	\caption{The connector between the communication board (module \textbf{B}) and real-time board (module \textbf{C}) comprises the I2C bus and CAN bus. }
+	\caption{The connector between the communication board (module \textbf{B}) and real-time board (module \textbf{C}).  There are many pins, but the majority of them are power and ground. The microcontroller controls the LED module through the P607 connector.  The communication module can block the operation of the entire real-time module through pin28. However, there are still a few pins that we have not figured out their functions. We consider it as one of our further works.}
 	\label{fig:p607}
 \end{figure}
 
