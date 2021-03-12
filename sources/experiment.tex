@@ -2,6 +2,10 @@
 \section{Experiment and Design}
 \label{sec:implant-experiment}
 
+
+The major challenge in making a PLC-specific hardware backdoor is that PLC does not use open standards like PC.  During the development, a significant amount of time is spent on the reverse engineering of the PLC. After a basic understanding of its modules and chips, we can choose how to control it, whether through JTAG or intercepting other low-speed buses.
+
+
 \subsection{Reverse Engineering}
 The PLC we use is Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370.
 The reverse engineering work includes both the hardware and software parts. First, we speculate on the function of each board of the PLC. Then we identify the on-board IC chips and use a multimeter to conduct the connectivity test for wire tracing. The purpose of this is to find the interconnections between chips and between boards. Fortunately, the real-time module is a two-side PCB, and the wire connectors that pass through the board are well exposed, as seen in~\autoref{fig:ssi0}. Furthermore, we dump the firmware from the microcontroller and flash chip for reverse-engineering analysis.
@@ -56,7 +60,7 @@ The digital IO sockets on the connector module (\textbf{D}) connects to the real
 			\hline
 			0x40000000 & 0x4001FFFF & \textbf{FiRM Peripherals} \\  
 			\hline
-			0x40020000 & 0xDFFFFFFF  & \textbf{Peripherals} \\
+			0x40020000 & 0xDFFFFFFF & \textbf{Peripherals} \\
 			\hline
 			0xE0000000 & 0xFFFFFFFF & \textbf{Private Peripheral Bus} \\
 			\hline
@@ -72,16 +76,11 @@ The digital IO sockets on the connector module (\textbf{D}) connects to the real
 The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP) and the program counter (PC), respectively. In our case, the SP is 0x20000B48, and the PC is 0x000000E3. Notice that 0xE3 is an odd number. As we know, RISC processors such as ARM uses fixed-length instruction. On ARM processors, setting the PC's least significant bit indicates that the following code will be executed as the two-byte Thumb instructions. Therefore, we dump the flash memory and disassemble it at address 0x000000E2 instead.
 
 
-\textbf{\textit{Flash boot loader.}} The SRAM is at 0x20000000. The flash boot loader copies itself to SRAM memory right after it starts, in consideration of performance. Even though the SRAM and flash memory can both be accessed in a single cycle, the manual says that the flash memory only can do that as long as the code is linear and branches incur a one-cycle stall. 
 
-The code copies memory range 0x0 - 0xA88 to 0x20000000 - 0x20000A88 and initialize the data section 0x20000A88 - 0x20000F54 to 0.  Next, it uses the vector table that resides in SRAM. As mentioned above, on system reset, the vector table is fixed at address 0x00000000. The privileged code can write to the Vector Table Offset (VTABLE) register to relocate the vector table start address to a different memory location aligned on a 512-byte boundary. Replacing the vector table could mean completely changing the system's behavior because the corresponding interrupt vectors will point to different interrupt handlers to process peripheral devices' requests.
-
-
-Finally, it sets the vector table to 0x20000000 and jumps to SRAM to continue.
+\textbf{\textit{Flash Boot Loader.}} Right after the flash boot loader starts, it copies itself to SRAM, starting at 0x20000000. Although both SRAM and flash memory can be accessed in a single cycle, flash memory can do that as long as the code is linear and branches incur a one-cycle stall. The bootloader copies 0x00000000 - 0x00000A88 to 0x20000000 - 0x20000A88, and clear the data section (0x20000A88 - 0x20000F54). As mentioned earlier, on system reset, the vector table is at the fixed address 0x00000000. However, it can be relocated by writing the vector table offset register (VTABLE). Changing the vector table indicates a complete change of the system's behavior because all the interrupt handlers are new, and they interpret how the system behaves regarding peripheral device's requests. The bootloader sets the vector table to 0x20000000 and jumps back to SRAM to continue execution.
 
 
-
-\textbf{\textit{Stellaris Peripheral Driver Library.}} The Drivelib~\cite{lm3s2793rom} uses tables to provide library API entries. The tables have two levels. The main table contains one pointer per peripheral, which points to a secondary table containing one pointer per API associated with that peripheral. The main table is located at 0x01000010, right after the Cortex-M3 vector table in the ROM. \autoref{tab:romtable} shows a portion of the API table, and ~\autoref{tab:gpiotable} shows part of the ROM\_GPIOTABLE, which contains the entry points of all the GPIO related APIs.
+\textbf{\textit{Stellaris Peripheral Driver Library.}} The Drivelib~\cite{lm3s2793rom} is a set of APIs utilized to control the on-chip peripheral devices. It is provided in ROM code and placed in a fixed location on Cortex-M3 SoCs. It helps identify what functions the firmware calls. Through the fixed location of APIs and the Drivelib datasheet, the function matches with names. It is a two-level table structure. The main table is at 0x1000010, and it contains the address of the secondary table for each type of peripherals, as shown in~\autoref{tab:romtable}. For example, ~\autoref{tab:gpiotable} shows the ROM\_GPIOTABLE, which contains all the GPIO related APIs.
 
 \begin{center}
 	\begin{table}
@@ -138,34 +137,32 @@ Finally, it sets the vector table to 0x20000000 and jumps to SRAM to continue.
 \end{center}
 
 
-%The following is an example of calling function ROM\_GPIOPinRead() from the flash memory disassembly. API table indexing 0x1000010 + 0x10 (ROM\_APITABLE[4]) is optimized to 0x1000020 which points to the GPIO API table. [R2,\#0x2C] represents ROM\_GPIOTABLE[11] which is ROM\_GPIOPinRead(). So the code that calling the ROM library is very helpful to reveal the intent of the program.
 
-
-\autoref{fig:romapiexample} shows a typical code snippet calling a ROM API. The table is at 0x1000010 + 0x10 (ROM\_APITABLE[4]), the GPIO table and the API is ROM\_GPIOPinRead() (ROM\_GPIOTABLE[11]). All the ROM API call sites have the same pattern, which makes reverse engineering the firmware much easier.  Calling the ROM API is merely to find the function address from the two-level tables and then jump to it. There is no privilege change; all the code runs in the system mode.
+\autoref{fig:romapiexample} shows a typical code snippet that calls a ROM API. The secondary table is at 0x1000010 + 0x10 (ROM\_APITABLE[4]), which is the the GPIO table. And the API it calls is ROM\_GPIOPinRead() (ROM\_GPIOTABLE[11]). Because all the ROM API call sites have the same pattern, it makes firmware's reverse engineering work much easier.  Calling the API is merely locating the function address from the two-level tables and jumps to it, and the parameters are passed through registers. There is no privilege change when calling into the APIs, and the firmware code all runs in the system mode.
 
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/romapiexample2}
 	\centering
-	\caption{A code snippet calling ROM\_GPIOPinRead(). The parameters are passed in through the general registers where, in this case, the function has two parameters: R0 contains the GPIO port address to operate, and R1 is the bit-packed representation of the pins.  R2 stores the GPIO API table's address and eventually loads the API entry point and then jump to it.}
+	\caption{A code snippet that calls ROM\_GPIOPinRead(). The parameters are passed through registers. In this case, the  ROM\_GPIOPinRead() has two parameters. R0 contains the GPIO port address, and R1 indicates the pins to operate.}
 	\label{fig:romapiexample}
 \end{figure}
 
 
 
 
-\textbf{\textit{Debug.}} In addition to reverse-engineering,  we also need to debug the firmware. We use the SEGGER J-Link debugger. Since the target is ARM and the debugger sets up a GDB server, we also need GNU Embedded Toolchain for ARM~\cite{gnutoolchainarm}, an ARM version of the gdb client.
-
-
-As mentioned earlier, the stack pointer and program counter are located at address 0x00000000 and 0x00000004. As shown in~\autoref{fig:gdbinit}, we use a GDB initialization script that contains GDB commands to set up the target. This script makes the PLC initialized and runs ladder logic, but the PLC cannot be interrupted during runtime with the debugger. If so, the indicator on the LED panel will prompt an IO error. The reason is still under investigation, and it could be that the watchdog timer is not handled well.
-
-\begin{figure}[th]
-	\includegraphics[width=0.47\textwidth]{figures/gdbinit}
-	\centering
-	\caption{The minimal gdbinit script that sets the SP and PC registers makes the PLC be up and running. Other on-chip peripheral controllers may not be correctly initialized.}
-	\label{fig:gdbinit}
-\end{figure}
-
+%\textbf{\textit{Debug.}} In addition to reverse-engineering,  we also need to debug the firmware. We use the SEGGER J-Link debugger. Since the target is ARM and the debugger sets up a GDB server, we also need GNU Embedded Toolchain for ARM~\cite{gnutoolchainarm}, an ARM version of the gdb client.
+%
+%
+%As mentioned earlier, the stack pointer and program counter are located at address 0x00000000 and 0x00000004. As shown in~\autoref{fig:gdbinit}, we use a GDB initialization script that contains GDB commands to set up the target. This script makes the PLC initialized and runs ladder logic, but the PLC cannot be interrupted during runtime with the debugger. If so, the indicator on the LED panel will prompt an IO error. The reason is still under investigation, and it could be that the watchdog timer is not handled well.
+%
+%\begin{figure}[th]
+%	\includegraphics[width=0.47\textwidth]{figures/gdbinit}
+%	\centering
+%	\caption{The minimal gdbinit script that sets the SP and PC registers makes the PLC be up and running. Other on-chip peripheral controllers may not be correctly initialized.}
+%	\label{fig:gdbinit}
+%\end{figure}
+%
 
 
 %\subsubsection{more reverse engineering topics ....}
@@ -173,98 +170,81 @@ As mentioned earlier, the stack pointer and program counter are located at addre
 %Through reverse engineering, it shows that the Vector Table Offset Register is first at address 0x0, then switch to address 0x20000000, after receiving the ladder logic code, finally set to address 0x40000. 
 
 
+
 \subsection{GPIO}
+The PLC interacts with the physical world through digital inputs and outputs. The IO goes through the power switches and optically coupled isolator chips and eventually connects to the microcontroller's GPIO.
 
-The hardware backdoor's essential function is to control the PLC's output to control the industrial physical system. The GPIO pins on the microcontroller either sensing the inputs or controls the outputs of the PLC.
 
-For our target LM3S2793, the GPIO module comprises nine physical GPIO blocks, each corresponding to an individual GPIO port. Depending on the microcontroller's configuration, it supports up to 67 programmable input/output pins or several GPIOs grouped compose of a peripheral function such as I2C, and the GPIO ports can be accessed either through AHB or APB bus.  Each GPIO port has several associated control registers, such as GPIO Digital Enable (GPIODEN), GPIO Alternate Function Select (GPIOAFSEL), GPIO Port Control (GPIOPCTL), and GPIO Data Control registers. All GPIO pins are configured as GPIOs and tri-stated by default.
+In the microcontroller LM3S2793, the GPIO module comprises nine physical GPIO blocks, and each corresponds to an individual GPIO port. Depending on the microcontroller's configuration, it supports up to 67 programmable input/output pins or several pins grouped to provide peripheral functions such as I2C. The GPIO ports can be accessed either through AHB or APB bus, which matters when we access the GPIOs through JTAG. We choose the AHB-AP.
 
-We primarily operate on the GPIO Data control registers. The GPIO Direction (GPIODIR) register configures each pin as an input or output, which should not be changed for the PLC's IO. The GPIO Data (GPIODATA) register modifies individual bits in GPIO ports. Different microcontrollers have their own operating methods on GPIOs, such as Output Data Register (ODR), Bit Reset Register (BRR), Bit Set/Reset Register (BSRR)~\cite{cottle2001programmable}. On LM3S2793, to modify individual GPIO pins in a single instruction without affecting the other pins' state, the operation on GPIODATA is not intuitive. Instead of each bit representing a GPIO pin,  it uses bits [9:2] of the address as a mask. Bits[1:0] are always zero because the memory access should be at 4-byte alignment on ARM.  For each GPIO port, it needs the memory range from GPIODATA to GPIODATA + 0x3FC to operate. If the address bit associated with that data bit is set during a write, the GPIODATA register's bit is altered. If the address bit is cleared, then the data bit is left unchanged.
+Each GPIO port has several associated control registers, such as GPIO Digital Enable (GPIODEN), GPIO Alternate Function Select (GPIOAFSEL), GPIO Port Control (GPIOPCTL), and GPIO Data Control registers. All GPIO pins are configured as individual input/output pins and tri-stated by default. The GPIO Direction (GPIODIR) register configures each GPIO pin as an input or output, and we do not change it. To change the inputs and outputs, we primarily operate on the GPIO Data (GPIODATA) register that modifies individual bits in GPIO ports. 
 
-For example, GPIO Port A (AHB) is at 0x40058000, and we want to set its bit-2 to 0 and bit-5 to 1. As shown in~\autoref{gpiowrite}, the address mask is 0x90, and the value we write is 0xF0.  Therefore, we need to write a value of 0xF0 to the address 0x40058090.
+The way to control the GPIO data is not straightforward.  Different microcontrollers adopt different operating methods. For example, the GPIO port may take Output Data Register (ODR), Bit Reset Register (BRR), Bit Set/Reset Register (BSRR)~\cite{cottle2001programmable}. In our case, the LM3S2793 microcontroller uses a more complicated model to conduct bit-wise operations. The GPIO Data register is memory-mapped. When read/write, bits[9:2] of the address are treated as a bitmask, as well as the bits[1:0] are always zero because the memory access should be at 4-byte alignment on ARM. Therefore, for each GPIO port, the memory-mapped range should be 1KB long, that is, from GPIODATA to GPIODATA + 0x3FC. A write can only change the data bit when the corresponded bitmask is set. Otherwise, the data bit is unchangeable.
+
+For example, GPIO Port A (AHB) is mapped at 0x40058000, and it controls 8 GPIO pins. We want to set bit2 to 0 and bit5 to 1. As shown in~\autoref{gpiowrite}, the bitmask is 0x90, and the data is 0xF0.  Hence, the operation should be writing 0xF0 to address 0x40058090.
+
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/gpiowrite2}
 	\centering
-	\caption{GPIODATA Write Example. Writing a value of 0xF0 to the address GPIODATA + 0x090 has the bit-2 unset and bit-5 set in GPIODATA register where \textbf{u} indicates that data is unchanged by the write. Because of the mask, for example, writing 0xF0 or writing 0x2B has the same effect.}
+	\caption{Writing a byte of 0xF0 to address GPIODATA + 0x90.  The bitmask only allows bit2 and bit5 to be modified. Therefore, only two bits are valid for the write operation.  \textbf{u} indicates the new bit is ignored.}
 	\label{fig:gpiowrite}
 \end{figure}
 
 
 
-To read a GPIO port, if the address bit associated with the data bit is set, the value is read. If the address bit associated with the data bit is cleared, the data bit is read as a zero, regardless of its actual value. For instance, we read GPIO Port A's high 4 bits. As shown in~\autoref{fig:gpioread}, the address mask is 0x3C0, and read address 0x400583C0 yields 0xA0.
-
+The same applies to reading. Only the corresponding bit in the bitmask will be read. Otherwise, it reads zero. For example, to read the four high bits from GPIO Port A, the address with bitmask should be 0x40058000 + 0x3C0, and it reads 0xA0, as shown in~\autoref{fig:gpioread}.
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/gpioread2}
 	\centering
-	\caption{GPIODATA Read Example. Reading address GPIODATA+0x3C0 returns the high 4 bits of the GPIO port because the address mask for the low 4 bits is all zeros.}
+	\caption{The address GPIODATA+0x3C0 reads the high four bits of the GPIO port. The rest reads zero regardless of the actual value.}
 	\label{fig:gpioread}
 \end{figure}
 
 
 
-\subsection{Attacks}
+\textbf{\texttt{Control Output.}} After knowing how to control GPIO, we can directly control the output of the PLC. There are 16 inputs and 16 outputs on the IO connector. Through reverse engineering, we know the GPIO port corresponding to the IO.  That are, GPIO port E (0x4005C000) GPIO port F (0x4005D000) for inputs, and GPIO port G (0x4005E000), GPIO port H (0x4005F000) for outputs. Intuitively, each GPIO bit corresponds to a pin on the connector. One indicates the high voltage, which is the field power voltage; zero dictates the low voltage (8 volts).
 
-To achieve a concealed attack on the PLC, we change its output without change the LED indicator on the front panel. More importantly, we have to ensure that the host side cannot detect any anomaly through the ladder logic.
-
-There are 16 inputs and 16 outputs on the front panel. Through reverse engineering, we found the GPIO port corresponding to the input and output sockets. For example,  GPIO port E (0x4005C000), GPIO port F (0x4005D000) for inputs, and GPIO port G (0x4005E000), GPIO port H (0x4005F000) for outputs. Intuitively, each bit represents one pin, and 1 indicates the high voltage, which is the field power voltage that connects to the PLC; 0 dictates the low voltage (8 volts).
-
-The PLC periodically scans the input, runs ladder logic, and updates output accordingly. It is called one scan cycle and implemented through a timer in the microcontroller. Following the timer handler routine, it is trivial to find the compiled ladder logic binary, and there are a few local variables that control its behavior. One local variable records if any logic state has changed. If so, the corresponding out GPIO port will be updated. We modify this local variable so that the output will not be updated from the ladder logic. Thus out attack can change the output arbitrarily without modifying the logic state. Doing so will not trigger any alarms.
+To conduct a stealthy attack, we want to change the output secretly. For example, we want to keep the LEDs in their original state and the host (HMI) not to find any abnormalities. To achieve this goal, we need to leverage the firmware itself. The PLC periodically scans the inputs, runs ladder logic, and updates outputs.  It is trivial to find the ladder logic binary by following the timer handler routine. There are a few local variables that control how the ladder logic behaves. For example, one local variable determines if any logic state has changed. If so, the corresponded GPIO pin will be updated according to the ladder logic. We modify this local variable so that everything looks up to date. In the meantime,  we can change the outputs without triggering any alarms.
 
 
-\subsection{Other Onboard Components and Interconnections}
 
-The methods mentioned above can satisfy a basic attack. To implement more complex attacks, we studied other components on the PLC boards.
-
-\textbf{\textit{AT45DB021E SPI Flash Memory.}} There is an 8-pin chip
-next to the LM3S2793 microcontroller. It is an Adesto 45DB021E 2-Mbit SPI flash memory chip and connected to the Synchronous Serial Interface (SSI0) of the microcontroller, as shown in ~\autoref{fig:ssi0}.
-
-
-%Knowing how the real-time controller controls IO module, how to attack attack through the JTAG interface, we hope to learn more about the other chips on the board and how the different backplanes are related. We found that no other chips are daisy chained together with LM3S2793 via JTAG, so we need more reverse engineering work.
+\textbf{\textit{AT45DB021E SPI Flash Memory.}}  It is quite noticeable that right next to the LM3S2793 microcontroller,  there is an 8-pin flash chip, which is an Adesto 45DB021E 2-Mbit SPI flash memory. It connects with the PLC's SSI0 (Synchronous Serial Interface), as shown in ~\autoref{fig:ssi0}.
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/ssi0}
 	\centering
-	\caption{AT45DB21E SPI Flash Memory connects to LM3S2793's SSI0 interface. The pins on the 8-pin solder pad are also referenced in the firmware, but the device is not installed. It could be four LED indicators.}
+	\caption{Through wiring tracing, we find that the AT45DB21E SPI Flash Memory connects to LM3S2793's SSI0 interface. The eight solder joints on the left may be used to install four LEDs. They are controlled by GPIO port D,  but they are not installed.}
 	\label{fig:ssi0}
 \end{figure}
 
-%Also, at the beginning of the firmware initialization, right after copy part of the inner flash to RAM as we mentioned earlier, by associating GPIO port A and SSI0, the firmware first read a byte from the flash chip (at offset 0x2000). This byte is stored at address 0x20000F50. If the value of this byte is 0x55 or 0xAA, the firmware will reset the system, otherwise it will verify the firmware integrity from memory 0x4000 to 0x1FFFC. 
 
-%The checksum is very simple. From 0x4000 to 0x1FFFC, accumulate each byte, and the final result is compared with the byte at 0x1FFFF. If they are equal, the check passes, otherwise, the firmware enters an infinite loop and keeps reset the watchdog.
+During the boot process, the pins in GPIO port A are assigned for the SSI0 master device. The firmware first reads one byte from the flash chip (offset 0x2000), which looks like a status byte. If it equals 0x55 or 0xAA, the PLC will be reset. If not, the firmware checks the integrity of the address 0x4000 to 0x1FFFC, the compiled ladder logic. The algorithm is a simple checksum. Accumulate each byte in this address range, and the result should be equal to the byte in address 0x1FFFF.
 
-%We can see that the variables saved in the external flash may indicate the state of the system's last run. Value 0x55 indicates something fatal happened. Right before it reset the system, the firmware setups 4 pins of GPIO port D as output and operates on it. We traced these 4 pins to a solder joint pad, as shown in~\autoref{fig:ssi0}, although this part is not installed.
+So this status byte at 0x2000 indicates the status of the PLC last time it was running. The value 0x55 indicates that the system has encountered a severe failure. If so, the firmware operates on GPIO port D, leading to the eight solder joins next to the SPI flash. We think they may be four LEDs to show the status. Furthermore, if the value is 0xAA, it means that the ladder logic binary has been broken, and the firmware will copy the code from 0x6100 in the SPI flash. We think this is a backup code and also a place where malicious code can be stored.
 
-%Value 0xAA indicates that the firmware from 0x4000 to 0x1FFFF is corrupted. The firmware reloads the partial image from external flash chip (from offset 0x6100) and sets variable 0x20000F50 to 0, then resets the PLC. But this image from AT45DB021E is a default backup.
-
-In the boot loader, after jumping to SRAM, GPIO port A is assigned to the device SSI0. Then the firmware reads one byte from the flash chip (at offset 0x2000). If it equals either 0x55 or 0xAA, the firmware resets the PLC. Otherwise, the firmware starts to verify the integrity of the memory range 0x4000 to 0x1FFFC, which is the compiled ladder logic. The verification algorithm is a simple checksum. Each byte in this range is accumulated, and the final result should be equal to the byte of 0x1FFFF.
-
-We think this byte in the flash memory represents the state of the last run.  A value of 0x55 indicates the system has encountered a severe error. The firmware then operates four pins from the GPIO port D, which leads to an empty 8-pin solder pad right next to the flash chip.  A value of 0xAA means that the ladder logic is corrupted, and data will be copied from the flash chip at offset 0x6100, which we believe is a backup.
-
-To read the AT45DB21E flash chip's content, we port its driver to the Teensy 3.2 board. The source code is available at the github~\footnote{https://github.com/whensungoesdown/at45db021\_teensy32}. 
+To read the AT45DB21E flash chip's content, we port its driver to the Teensy 3.2 board. The source code is available at the github~\footnote{https://github.com/whensungoesdown/at45db021\_teensy32}.
 
 
 
+\textbf{\textit{Front Panel LED.}} There are four rows of LEDs on the front panel of the PLC. Each LED represents the state of an input or output. Usually, this is a very intuitive reflection of the current status of the PLC.
 
-\textbf{\textit{Front Panel LED.}} There are four rows of LED lights on the PLC's front panel. Each LED shows individual input and output pins' status, which is an intuitive way for the administrator to check whether the device works properly. Underneath, the LED module \textbf{E} is controlled by the microcontroller through the I2C protocol~\cite{semiconductors2000i2c}. 
+There are four rows of LED lights on the PLC's front panel. Each LED shows individual input and output pins' status, which is an intuitive way for the administrator to check whether the device works properly. The microcontroller controls these LEDs through the I2C protocol~\cite{semiconductors2000i2c}.
 
-There are two 24-pin PD9535 mounted on module \textbf{E}. They are Remote 16-bit I2C and SMBus, Low-Power I/O Expander~\cite{pd9535}, which provides general-purpose I/O expansion for microcontrollers via the I2C bus. 
+There are two 24-pin PD9535 chips (Remote 16-bit I2C/SMBus, Low-Power I/O Expander~\cite{pd9535}) on module \textbf{E}. It provides general-purpose I/O expansion for microcontrollers via the I2C bus. The two pins in GPIO port B(PB2 and PB3) on the microcontroller are used as the SCL and SDA signal lines for the I2C master device. These two signal lines also pass through the connector between module \textbf{B} and \textbf{C}, as shown in~\autoref{fig:p607}.
 
-Two pins of GPIO port B (PB2 and PB3) are used as SCL and SDA by the I2C0 device on the microcontroller. Because module \textbf{E} connects both module \textbf{C} and module \textbf{E}, the SCL and SDA are found from the connector, as shown in~\autoref{fig:p607}
+Each I2C slave device on the same bus has a unique 7-bit address. In our example, the addresses of the two PD9593 chips are 0x20 and 0x21. ~\autoref{tab:i2ccommand} shows that the chip has eight internal registers. As mentioned in~\autoref{sec:implant-background}, after the master device successfully sends the address byte, it will send another byte to select the internal register. Among these internal registers, the configuration register is responsible for controlling the directions of the IO pins. Zero means the corresponding pin is output. Because the PLC uses PD9593 to control the LED, all the pins are outputs. The input port registers reflect the pins' incoming logic levels, regardless of whether the pin is defined as an input or an output by the configuration register. Nevertheless, we do not need to read the input registers.
 
 
-I2C slave device on the bus has a 7-bit unique address.  In this case, the two PD9535 chips for controlling input and output LED lights are assigned address 0x20 and 0x21, respectively.  Each of them has eight internal registers, as shown in~\autoref{tab:i2ccommand}. As mentioned in~\autoref{sec:background}, following the successful acknowledgment of the address byte, the microcontroller sends the command byte to select an internal register. 
-
-Among the internal registers of PD9593, the configuration port registers configure the directions of the I/O pins. If a bit in this register is cleared to 0, the corresponding port pin is set as an output. The input port registers reflect the pins' incoming logic levels, regardless of whether the pin is defined as an input or an output by the configuration register. The output port registers set the outgoing logic levels of the pins. Since we use PD9593 to control LEDs, the pins are configured as outputs, and we do not need to read the input port registers. 
 
 \begin{center}
 	\begin{table}
 		%\begin{tabular}{|c|@{}c@{}|c|c|} 
-		\begin{tabular}{|@{}>{\centering\arraybackslash}m{0.8cm}@{}|
-				@{}>{\centering\arraybackslash}m{3.25cm}@{}|
-				@{}>{\centering\arraybackslash}m{2.30cm}@{}|
-				@{}>{\centering\arraybackslash}m{1.5cm}@{}| }
+		\begin{tabular}{|@{}>{\centering\arraybackslash}m{0.9cm}@{}|
+				@{}>{\centering\arraybackslash}m{3.35cm}@{}|
+				@{}>{\centering\arraybackslash}m{2.35cm}@{}|
+				@{}>{\centering\arraybackslash}m{1.6cm}@{}| }
 			\hline
 			\makecell{CMD \\Byte} & Register & Protocol & \makecell{Power-up \\Default}\\
 			\hline
@@ -285,7 +265,7 @@ Among the internal registers of PD9593, the configuration port registers configu
 			0x07 & Configuration Port 1 & Read/Write byte & 1111 1111\\
 			\hline
 		\end{tabular}
-		\caption{PD9535 internal registers can be selected by the command byte. To control LEDs, we only need to operate the control and output registers and keep the two polarity inversion registers' default values.}
+		\caption{The internal registers of the PD9593 are selected by the master device sending the command byte. To control the LED, we need to operate the control register and the output register and keep the two polarity inversion registers' default value.}
 		\label{tab:i2ccommand}
 	\end{table}
 \end{center}
