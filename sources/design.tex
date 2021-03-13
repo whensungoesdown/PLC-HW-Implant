@@ -1,6 +1,6 @@
 %! TEX root = 'main.tex'
-\section{Experiment and Design}
-\label{sec:implant-experiment}
+\section{Reverse Engineering and Design}
+\label{sec:implant-design}
 
 
 The major challenge in making a PLC-specific hardware backdoor is that PLC does not use open standards like PC.  During the development, a significant amount of time is spent on the reverse engineering of the PLC. After a basic understanding of its modules and chips, we can choose how to control it, whether through JTAG or intercepting other low-speed buses.
@@ -52,8 +52,10 @@ The digital IO sockets on the connector module (\textbf{D}) connects to the real
 			\hline
 			%0x01005F00 & 0x1FFFFFFF & Reserved \\ 
 			%\hline
-			%0x20000000 & 0x2000FFFF & Bit-banded on-chip SRAM \\
-			%\hline
+			0x20000000 & 0x2000FFFF & Bit-banded on-chip SRAM \\
+			\hline
+			... & & \\
+			\hline
 			%0x20010000 & 0x21FFFFFF & Reserved \\
 			%\hline
 			%0x22000000 & 0x221FFFFF & Bit-band alias of bit-banded on-chip SRAM starting at 0x20000000 \\
@@ -198,8 +200,7 @@ The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP)
 
 
 
-\subsection{GPIO}
-The PLC interacts with the physical world through digital inputs and outputs. The IO goes through the power switches and optically coupled isolator chips and eventually connects to the microcontroller's GPIO.
+\textbf{\texttt{GPIO.}} The PLC interacts with the physical world through digital inputs and outputs. The IO goes through the power switches and optically coupled isolator chips and eventually connects to the microcontroller's GPIO.
 
 
 In the microcontroller LM3S2793, the GPIO module comprises nine physical GPIO blocks, and each corresponds to an individual GPIO port. Depending on the microcontroller's configuration, it supports up to 67 programmable input/output pins or several pins grouped to provide peripheral functions such as I2C. The GPIO ports can be accessed either through AHB or APB bus, which matters when we access the GPIOs through JTAG. We choose the AHB-AP.
