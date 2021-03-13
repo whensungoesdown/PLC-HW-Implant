@@ -33,12 +33,12 @@ The digital IO sockets on the connector module (\textbf{D}) connects to the real
 
 \begin{center}
 	\begin{table}
-		\begin{tabular}{|p{1.6cm}  p{1.6cm}  p{4cm}|} 
+		\begin{tabular}{p{1.6cm}  p{1.6cm}  p{4cm}} 
 			\hline
 			%Start & End & Description \\ [0.5ex] 
 			Start & End & Description \\ 
 			\hline
-			\textbf{Memory} & & \\
+			\multicolumn{3}{l}{\textbf{Memory} (0x00000000 - 0x22200000)}  \\
 			\hline
 			0x00000000 & 0x0001FFFF & On-chip Flash \\ 
 			\hline
@@ -48,24 +48,51 @@ The digital IO sockets on the connector module (\textbf{D}) connects to the real
 			\hline
 			0x01005000 & 0x01005EFF & AES+CRC lib in on-chip ROM   \\
 			\hline
-			0x01005F00 & 0x1FFFFFFF & Reserved \\ 
+			... & & \\
 			\hline
-			0x20000000 & 0x2000FFFF & Bit-banded on-chip SRAM \\
+			%0x01005F00 & 0x1FFFFFFF & Reserved \\ 
+			%\hline
+			%0x20000000 & 0x2000FFFF & Bit-banded on-chip SRAM \\
+			%\hline
+			%0x20010000 & 0x21FFFFFF & Reserved \\
+			%\hline
+			%0x22000000 & 0x221FFFFF & Bit-band alias of bit-banded on-chip SRAM starting at 0x20000000 \\
+			%\hline
+			%0x22200000 & 0x3FFFFFFF & Reserved \\
+			\multicolumn{3}{l}{\textbf{FiRM Peripherals} (0x40000000 - 0x4001FFFF)}  \\
 			\hline
-			0x20010000 & 0x21FFFFFF & Reserved \\
+			... & & \\
 			\hline
-			0x22000000 & 0x221FFFFF & Bit-band alias of bit-banded on-chip SRAM starting at 0x20000000 \\
+			0x40008000 & 0x40008FFF & SSI0 \\
 			\hline
-			0x22200000 & 0x3FFFFFFF & Reserved \\
+			... & & \\
 			\hline
-			0x40000000 & 0x4001FFFF & \textbf{FiRM Peripherals} \\  
+			\multicolumn{3}{l}{\textbf{Peripherals} (0x40020000 - 0xDFFFFFFF)}  \\
 			\hline
-			0x40020000 & 0xDFFFFFFF & \textbf{Peripherals} \\
+			0x40020000 & 0x400207FF & I2C Master 0 \\
 			\hline
-			0xE0000000 & 0xFFFFFFFF & \textbf{Private Peripheral Bus} \\
+			... & & \\
+			\hline
+			0x4005C000 & 0x4005CFFF & GPIO Port E (AHB aperture) \\
+			\hline
+			0x4005D000 & 0x4005DFFF & GPIO Port F (AHB aperture) \\
+			\hline
+			0x4005E000 & 0x4005EFFF & GPIO Port G (AHB aperture) \\
+			\hline
+			0x4005F000 & 0x4005FFFF & GPIO Port H (AHB aperture) \\
+			\hline
+			... & & \\
+			\hline
+			\multicolumn{3}{l}{\textbf{Private Peripheral Bus} (0xE0000000 - 0xFFFFFFFF)}  \\
+			\hline
+			... & & \\
+			\hline
+			0xE000E000 & 0xE000EFFF & Nested Vectored Interrupt Controller (NVIC) \\
+			\hline
+			... & & \\
 			\hline
 		\end{tabular}
-		\caption{LM3S2793 Memory Map}
+		\caption{LM3S2793 Memory Map. Only list the address space of the memory and devices related to this paper. FiRM-compliant (compliant to the ARM Foundation IP for Real-Time Microcontrollers specification).}
 		\label{tab:memorymap}
 	\end{table}
 \end{center}
@@ -77,7 +104,7 @@ The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP)
 
 
 
-\textbf{\textit{Flash Boot Loader.}} Right after the flash boot loader starts, it copies itself to SRAM, starting at 0x20000000. Although both SRAM and flash memory can be accessed in a single cycle, flash memory can do that as long as the code is linear and branches incur a one-cycle stall. The bootloader copies 0x00000000 - 0x00000A88 to 0x20000000 - 0x20000A88, and clear the data section (0x20000A88 - 0x20000F54). As mentioned earlier, on system reset, the vector table is at the fixed address 0x00000000. However, it can be relocated by writing the vector table offset register (VTABLE). Changing the vector table indicates a complete change of the system's behavior because all the interrupt handlers are new, and they interpret how the system behaves regarding peripheral device's requests. The bootloader sets the vector table to 0x20000000 and jumps back to SRAM to continue execution.
+\textbf{\textit{Flash Boot Loader.}} Right after the flash boot loader starts, it copies itself to SRAM, starting at 0x20000000. Although both SRAM and flash memory can be accessed in a single cycle, flash memory can do that as long as the code is linear and branches incur a one-cycle stall. The bootloader copies 0x00000000 - 0x00000A88 to 0x20000000 - 0x20000A88, and clear the data section (0x20000A88 - 0x20000F54). As mentioned earlier, on system reset, the vector table is at the fixed address 0x00000000. However, it can be relocated by writing the vector table offset register (VTOR:0xE000ED08). Changing the vector table indicates a complete change of the system's behavior because all the interrupt handlers are new, and they interpret how the system behaves regarding peripheral device's requests. The bootloader sets the vector table to 0x20000000 and jumps back to SRAM to continue execution.
 
 
 \textbf{\textit{Stellaris Peripheral Driver Library.}} The Drivelib~\cite{lm3s2793rom} is a set of APIs utilized to control the on-chip peripheral devices. It is provided in ROM code and placed in a fixed location on Cortex-M3 SoCs. It helps identify what functions the firmware calls. Through the fixed location of APIs and the Drivelib datasheet, the function matches with names. It is a two-level table structure. The main table is at 0x1000010, and it contains the address of the second-level table for each type of peripherals, as shown in~\autoref{tab:romtable}. For example, ~\autoref{tab:gpiotable} shows the ROM\_GPIOTABLE, which contains all the GPIO related APIs.
@@ -181,7 +208,7 @@ Each GPIO port has several associated control registers, such as GPIO Digital En
 
 The way to control the GPIO data is not straightforward.  Different microcontrollers adopt different operating methods. For example, the GPIO port may take Output Data Register (ODR), Bit Reset Register (BRR), Bit Set/Reset Register (BSRR)~\cite{cottle2001programmable}. In our case, the LM3S2793 microcontroller uses a more complicated model to conduct bit-wise operations. The GPIO Data register is memory-mapped. When read/write, bits[9:2] of the address are treated as a bitmask, as well as the bits[1:0] are always zero because the memory access should be at 4-byte alignment on ARM. Therefore, for each GPIO port, the memory-mapped range should be 1KB long, that is, from GPIODATA to GPIODATA + 0x3FC. A write can only change the data bit when the corresponded bitmask is set. Otherwise, the data bit is unchangeable.
 
-For example, GPIO Port A (AHB) is mapped at 0x40058000, and it controls 8 GPIO pins. We want to set bit2 to 0 and bit5 to 1. As shown in~\autoref{gpiowrite}, the bitmask is 0x90, and the data is 0xF0.  Hence, the operation should be writing 0xF0 to address 0x40058090.
+For example, GPIO Port A (AHB) is mapped at 0x40058000, and it controls 8 GPIO pins. We want to set bit2 to 0 and bit5 to 1. As shown in~\autoref{fig:gpiowrite}, the bitmask is 0x90, and the data is 0xF0.  Hence, the operation should be writing 0xF0 to address 0x40058090.
 
 
 \begin{figure}[th]
