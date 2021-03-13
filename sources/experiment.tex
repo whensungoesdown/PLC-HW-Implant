@@ -80,7 +80,7 @@ The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP)
 \textbf{\textit{Flash Boot Loader.}} Right after the flash boot loader starts, it copies itself to SRAM, starting at 0x20000000. Although both SRAM and flash memory can be accessed in a single cycle, flash memory can do that as long as the code is linear and branches incur a one-cycle stall. The bootloader copies 0x00000000 - 0x00000A88 to 0x20000000 - 0x20000A88, and clear the data section (0x20000A88 - 0x20000F54). As mentioned earlier, on system reset, the vector table is at the fixed address 0x00000000. However, it can be relocated by writing the vector table offset register (VTABLE). Changing the vector table indicates a complete change of the system's behavior because all the interrupt handlers are new, and they interpret how the system behaves regarding peripheral device's requests. The bootloader sets the vector table to 0x20000000 and jumps back to SRAM to continue execution.
 
 
-\textbf{\textit{Stellaris Peripheral Driver Library.}} The Drivelib~\cite{lm3s2793rom} is a set of APIs utilized to control the on-chip peripheral devices. It is provided in ROM code and placed in a fixed location on Cortex-M3 SoCs. It helps identify what functions the firmware calls. Through the fixed location of APIs and the Drivelib datasheet, the function matches with names. It is a two-level table structure. The main table is at 0x1000010, and it contains the address of the secondary table for each type of peripherals, as shown in~\autoref{tab:romtable}. For example, ~\autoref{tab:gpiotable} shows the ROM\_GPIOTABLE, which contains all the GPIO related APIs.
+\textbf{\textit{Stellaris Peripheral Driver Library.}} The Drivelib~\cite{lm3s2793rom} is a set of APIs utilized to control the on-chip peripheral devices. It is provided in ROM code and placed in a fixed location on Cortex-M3 SoCs. It helps identify what functions the firmware calls. Through the fixed location of APIs and the Drivelib datasheet, the function matches with names. It is a two-level table structure. The main table is at 0x1000010, and it contains the address of the second-level table for each type of peripherals, as shown in~\autoref{tab:romtable}. For example, ~\autoref{tab:gpiotable} shows the ROM\_GPIOTABLE, which contains all the GPIO related APIs.
 
 \begin{center}
 	\begin{table}
@@ -104,7 +104,7 @@ The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP)
 			... \\ 
 			\hline
 		\end{tabular}
-		\caption{LM3S2793 ROM API Table}
+		\caption{LM3S2793 ROM API table is at a fixed address 0x1000010, and each table entry is 4 bytes address that points to a second-level table, which corresponds to a class of peripheral devices.}
 		\label{tab:romtable}
 	\end{table}
 \end{center}
@@ -131,14 +131,14 @@ The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP)
 			... \\ 
 			\hline
 		\end{tabular}
-		\caption{GPIO API Table}
+		\caption{GPIO API Table. Each table entry is the entry address of an API, and the function parameters are passed through registers. There is no privilege or mode change when calling into the APIs.}
 		\label{tab:gpiotable}
 	\end{table}
 \end{center}
 
 
 
-\autoref{fig:romapiexample} shows a typical code snippet that calls a ROM API. The secondary table is at 0x1000010 + 0x10 (ROM\_APITABLE[4]), which is the the GPIO table. And the API it calls is ROM\_GPIOPinRead() (ROM\_GPIOTABLE[11]). Because all the ROM API call sites have the same pattern, it makes firmware's reverse engineering work much easier.  Calling the API is merely locating the function address from the two-level tables and jumps to it, and the parameters are passed through registers. There is no privilege change when calling into the APIs, and the firmware code all runs in the system mode.
+\autoref{fig:romapiexample} shows a typical code snippet that calls a ROM API. The second-level table is at 0x1000010 + 0x10 (ROM\_APITABLE[4]), which is the the GPIO table. And the API it calls is ROM\_GPIOPinRead() (ROM\_GPIOTABLE[11]). Because all the ROM API call sites have the same pattern, it makes firmware's reverse engineering work much easier.  Calling the API is merely locating the function address from the two-level tables and jumps to it, and the parameters are passed in through registers. There is no privilege change when calling into the APIs, and the firmware code all runs in the system mode.
 
 
 \begin{figure}[th]
@@ -301,7 +301,7 @@ After initialization, \autoref{fig:ledi2csend} shows how to control the LEDs. Fo
 
 \textbf{\textit{Onboard Connectors.}} There are several connectors on the real-time module \textbf{C}, as shown in ~\autoref{fig:board}. P607 connects to the communication module \textbf{B} and P609 connects to the power module \textbf{A}. Usually, we think that the module \textbf{A} is just a power module responsible for providing three volts to others. However, this is a good place for purposefully damage the PLC by a short circuit, where the power flow is large.
 
-By conducting the connectivity tests with a multimeter, we perceive some pins' function in P607 as shown in~\autoref{fig:p607}. As mentioned earlier, the I2C bus passes through this connector. Besides, the CAN bus also passes through this connector. In this way, both the communication module and the real-time module are connected to the CAN bus connector in the bottom right corner in ~\autoref{fig:board}. These two modules can not only control the external CAN bus device, but they can also communicate via the CAN bus themself. However, the communication module has a higher priority. Setting pin29 on the P607 connector can block the transmission of the signal on pin21, which is the CAN bus's RxD signal line. On the microcontroller side, the master device CAN0 uses the PA6 and PA7 pins. 
+By conducting the connectivity tests with a multimeter, we perceive some pins' function in P607 as shown in~\autoref{fig:p607}. As mentioned earlier, the I2C bus passes through this connector. Besides, the CAN bus also passes through this connector. In this way, both the communication module and the real-time module are connected to the CAN bus connector in the bottom right corner in ~\autoref{fig:board}. These two modules can not only control the external CAN bus device, but they can also communicate via the CAN bus themself. However, the communication module has a higher priority. Setting pin29 on the P607 connector can block the transmission of the signal on pin21, the CAN bus's RxD signal line. On the microcontroller side, the master device CAN0 uses the PA6 and PA7 pins. 
 
 
 \begin{figure}[th]
