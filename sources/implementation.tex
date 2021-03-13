@@ -3,7 +3,8 @@
 \label{sec:implant-implementation}
 
 
-This section provides the implementation details and discusses the issues that we encountered during the development. We also give some experiments to prepare for attacks in different scenarios. These methods are not used in the current prototype.
+This section provides the implementation details and discusses the issues that we encountered during the development. 
+%We also give some experiments to prepare for attacks in different scenarios, which are not used in the current prototype.
 
 
 \textbf{\texttt{Read/Write Memory.}} We briefly introduced the JTAG protocol in the background (~\autoref{sec:implant-background}) earlier. Our driver sends instructions to the IR and reads the returned result according to the JTAG state machine. Nevertheless, we need to know how to operate ARM's CoreSight components for this particular hardware backdoor prototype. We choose the JTAG interface instead of SW (Serial Wire), so the corresponding debug port is JTAG-DP or SWJ-DP, as shown in~\autoref{fig:dap}.
@@ -42,7 +43,7 @@ Through DPACC and APACC registers, the debugger can access resources provided by
 \begin{figure}[ht]
 	\includegraphics[width=0.47\textwidth]{figures/dpapacc}
 	\centering
-	\caption{Both of the two registers are 35 bits long and can be scanned in/out through the JTAG protocol with IR instruction b1010 and b1010, respectively. RnW takes one bit, and zero indicates a write.}
+	\caption{Both of the two registers are 35 bits long and can be scanned in/out through the JTAG protocol with IR instruction b1010 and b1010, respectively. RnW takes one bit, and zero indicates a write. A[3:2] selects the register within a bank.}
 	\label{fig:dpapacc}
 \end{figure}
 
@@ -117,3 +118,10 @@ To read and write memory, we need to use the internal registers provided by the 
 	\caption{Pseudo-code for memory writing through MEM-AP. Notice, CSW, TAR and DRW are all in the bank zero. However, the bank is specified in the DP.SELECT instead of a register in AP.}
 	\label{fig:memapwrite}
 \end{figure}
+
+
+
+
+\textbf{\texttt{Send/Receive SMS Message.}} SIM800C provides a serial port as the interface to receive AT commands. When \name is started, we use the AT+CMGF command to set the GSM chip in SMS Text Mode. Then we use the AT+CNMI command to set how to notify when new messages come. After that, the Teensy board keeps checking the serial port for new messages every second. If there is one, read the content and parse if it is a pre-defined attack command.
+
+To send out a message, use the AT+CMGS command to set the destination phone number and then send the text message to the serial port. 
