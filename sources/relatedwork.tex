@@ -2,19 +2,29 @@
 \section{Related Work}
 \label{sec:implant-relatedwork}
 
-There are recent works~\cite{garcia2017hey}~\cite{basnight2013firmware}~\cite{blanco2012one}~\cite{cui2013firmware} in firmware modification attacks on network card, PLC and other embedded systems.
 
-HARVEY, a PLC rootkit that implements a physics-aware man-in-the-middle attack against cyber-physical control system. It modifies the key function in the PLC's firmware in order to damage the underlying physical system, while providing the system operators with the legit feedback signals.
+Firmware modification attacks~\cite{newman2011scada}~\cite{basnight2013firmware}~\cite{blanco2012one}~\cite{cui2013firmware}~\cite{konstantinou2015impact}~\cite{schulz2017nexmon} constitute significant attacks targeting embedded systems, industrial control systems, and IoT devices. 
 
-In~\cite{blanco2012one}, through the analysis of baseband firmware and related open source projects, it can control the baseband chip and turn on the monitor mode by modifying the firmware.
+Harvey~\cite{garcia2017hey} is a physical-aware stealthy rootkit against a cyber-physical power grid control system. It sites within the PLC's firmware below the control logic and modifies control commands before sending it to the physical plant's actuators. This work~\cite{moore2017implications} implements a malicious firmware that ignored incoming print commands for a printed 3D model, substitutes malicious print commands for an alternate 3D model.  If the firmware attacks can be carried out remotely, the harm will be even more significant. Cui et al.~\cite{cui2013firmware} gives a detailed case study of the HP-RFU (Remote Firmware Update) LaserJet printer firmware modification vulnerability, which allows arbitrary injection of malware into the printer's firmware via standard printed documents.
 
-Defense mechanism have been proposed can be divided into two categories. To prevent, vendors implement verification mechanism in order to only accept legit firmware image. In this case, any malicious firmware needs to bypass the verification first. The verification mechanism could be a simple hash of the image, for instance, the CRC32 value all together sums to 0. This type can be considered security by obscure, once the attacker knows about the mechanism, it's not difficult to break. More sophisticated way is to use digital signature, which is not practical to bypass. 
+These systems have one thing in common: they all run on a microcontroller with limited computing power. Therefore, these devices run a simple real-time operating system, and there has not been a complete anti-virus system or a series of integrity verification features and programs provided by hardware and operating system like those on modern PCs. Due to the lack of security features, the programs run on those systems are often more vulnerable. Moreover, because they usually focus on specific areas and are not easily accessible, security issues are ignored. However, once those systems are compromised, through firmware modification, the attacker can stay in the dark for a long time without being discovered and cause a significant impact at a particular moment.
 
-There are research works~\cite{li2011viper}~\cite{wang2015confirm}~\cite{li2011viper} that detecting firmware modification attacks. Li et al. propose using software-based attestation to verify the firmware of the Apple keyboard which runs an microcontroller. VIPER~\cite{li2011viper} also proposed software-only attestation protocol to verify the firmware of a network card.
+On the other hand, there are many ways to protect the firmware from being modified.
+ConFirm~\cite{wang2015confirm} is a low-cost technique to detect malicious modifications in the firmware of embedded control systems. It measures the number of low-level hardware events that occur during the execution of the firmware.
 
-ConFirm~\cite{wang2015confirm}, a low-cost technique to detect malicious modifications in the firmware of embedded control systems by measuring the number of low-level hardware events that occur during the execution of the firmware.
-
-Compared to on a computer, it's more difficult to verify that a file(firmware image) has been tampered with on an embedded system or PLC, but this is a very effective way to detect firmware modification attacks.
-
-
-Since the application of the above two methods, we need a new approach to evade detection. The hardware implant can be used to achieve the same or even more powerful functions without changing any firmware.
+%There are recent works~\cite{garcia2017hey}~\cite{basnight2013firmware}~\cite{blanco2012one}~\cite{cui2013firmware} in firmware modification attacks on network card, PLC and other embedded systems.
+%
+%HARVEY, a PLC rootkit that implements a physics-aware man-in-the-middle attack against cyber-physical control system. It modifies the key function in the PLC's firmware in order to damage the underlying physical system, while providing the system operators with the legit feedback signals.
+%
+%In~\cite{blanco2012one}, through the analysis of baseband firmware and related open source projects, it can control the baseband chip and turn on the monitor mode by modifying the firmware.
+%
+%Defense mechanism have been proposed can be divided into two categories. To prevent, vendors implement verification mechanism in order to only accept legit firmware image. In this case, any malicious firmware needs to bypass the verification first. The verification mechanism could be a simple hash of the image, for instance, the CRC32 value all together sums to 0. This type can be considered security by obscure, once the attacker knows about the mechanism, it's not difficult to break. More sophisticated way is to use digital signature, which is not practical to bypass. 
+%
+%There are research works~\cite{li2011viper}~\cite{wang2015confirm}~\cite{li2011viper} that detecting firmware modification attacks. Li et al. propose using software-based attestation to verify the firmware of the Apple keyboard which runs an microcontroller. VIPER~\cite{li2011viper} also proposed software-only attestation protocol to verify the firmware of a network card.
+%
+%ConFirm~\cite{wang2015confirm}, a low-cost technique to detect malicious modifications in the firmware of embedded control systems by measuring the number of low-level hardware events that occur during the execution of the firmware.
+%
+%Compared to on a computer, it's more difficult to verify that a file(firmware image) has been tampered with on an embedded system or PLC, but this is a very effective way to detect firmware modification attacks.
+%
+%
+%Since the application of the above two methods, we need a new approach to evade detection. The hardware implant can be used to achieve the same or even more powerful functions without changing any firmware.
