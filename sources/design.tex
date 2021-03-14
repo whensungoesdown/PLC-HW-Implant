@@ -33,6 +33,7 @@ The digital IO sockets on the connector module (\textbf{D}) connects to the real
 
 \begin{center}
 	\begin{table}
+		\small
 		\begin{tabular}{p{1.6cm}  p{1.6cm}  p{4cm}} 
 			\hline
 			%Start & End & Description \\ [0.5ex] 
@@ -109,26 +110,26 @@ The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP)
 \textbf{\textit{Flash Boot Loader.}} Right after the flash boot loader starts, it copies itself to SRAM, starting at 0x20000000. Although both SRAM and flash memory can be accessed in a single cycle, flash memory can do that as long as the code is linear and branches incur a one-cycle stall. The bootloader copies 0x00000000 - 0x00000A88 to 0x20000000 - 0x20000A88, and clear the data section (0x20000A88 - 0x20000F54). As mentioned earlier, on system reset, the vector table is at the fixed address 0x00000000. However, it can be relocated by writing the vector table offset register (VTOR:0xE000ED08). Changing the vector table indicates a complete change of the system's behavior because all the interrupt handlers are new, and they interpret how the system behaves regarding peripheral device's requests. The bootloader sets the vector table to 0x20000000 and jumps back to SRAM to continue execution.
 
 
-\textbf{\textit{Stellaris Peripheral Driver Library.}} The Drivelib~\cite{lm3s2793rom} is a set of APIs utilized to control the on-chip peripheral devices. It is provided in ROM code and placed in a fixed location on Cortex-M3 SoCs. It helps identify what functions the firmware calls. Through the fixed location of APIs and the Drivelib datasheet, the function matches with names. It is a two-level table structure. The main table is at 0x1000010, and it contains the address of the second-level table for each type of peripherals, as shown in~\autoref{tab:romtable}. For example, ~\autoref{tab:gpiotable} shows the ROM\_GPIOTABLE, which contains all the GPIO related APIs.
+\textbf{\textit{Stellaris Peripheral Driver Library.}} The Drivelib~\cite{lm3s2793rom} is a set of APIs utilized to control the on-chip peripheral devices. It is provided in ROM code and placed in a fixed location on Cortex-M3 SoCs. It helps identify what functions the firmware calls. Through the fixed location of APIs and the Drivelib datasheet, the function matches with names. It is a two-level table structure. The main table is at 0x1000010, and it contains the address of the second-level table for each type of peripherals, as shown in~\autoref{tab:romtable}. For example, ~\autoref{tab:gpiotable} shows the \texttt{ROM\_GPIOTABLE}, which contains all the GPIO related APIs.
 
 \begin{center}
 	\begin{table}
 		\small
 		\begin{tabular}{|p{7.2cm}|} 
 			\hline
-			ROM\_APITABLE (0x1000010) \\ [0.5ex] 
+			\texttt{ROM\_APITABLE (0x1000010)} \\ %[0.5ex] 
 			\hline
-			[0] = ROM\_VERSION \\
+			[0] = \texttt{ROM\_VERSION} \\
 			\hline
-			[1] = pointer to ROM\_UARTTABLE \\
+			[1] = pointer to \texttt{ROM\_UARTTABLE} \\
 			\hline
-			[2] = pointer to ROM\_SSITABLE \\
+			[2] = pointer to \texttt{ROM\_SSITABLE} \\
 			\hline
-			[3] = pointer to ROM\_I2CTABLE \\
+			[3] = pointer to \texttt{ROM\_I2CTABLE} \\
 			\hline
-			[4] = pointer to ROM\_GPIOTABLE \\
+			[4] = pointer to \texttt{ROM\_GPIOTABLE} \\
 			\hline
-			[5] = pointer to ROM\_ADCTABLE \\
+			[5] = pointer to \texttt{ROM\_ADCTABLE} \\
 			\hline
 			... \\ 
 			\hline
@@ -143,17 +144,17 @@ The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP)
 		\small
 		\begin{tabular}{|p{7.2cm}|} 
 			\hline
-			ROM\_GPIOTABLE \\ [0.5ex] 
+			\texttt{ROM\_GPIOTABLE} \\ [0.5ex] 
 			\hline
-			[0] = function ROM\_GPIOPinWrite \\
+			[0] = function \texttt{ROM\_GPIOPinWrite} \\
 			\hline
-			[1] = function ROM\_GPIODirModeSet \\
+			[1] = function \texttt{ROM\_GPIODirModeSet} \\
 			\hline
-			[2] = function ROM\_GPIODirModeGet \\
+			[2] = function \texttt{ROM\_GPIODirModeGet} \\
 			\hline
-			[3] = function ROM\_GPIOIntTypeSet \\
+			[3] = function \texttt{ROM\_GPIOIntTypeSet} \\
 			\hline
-			[4] = function ROM\_GPIOIntTypeGet \\
+			[4] = function \texttt{ROM\_GPIOIntTypeGet} \\
 			\hline
 %			[5] = function ROM\_GPIOPadConfigSet \\
 %			\hline
@@ -167,13 +168,13 @@ The data at 0x00000000 and 0x00000004 will be loaded into the stack pointer (SP)
 
 
 
-\autoref{fig:romapiexample} shows a typical code snippet that calls a ROM API. The second-level table is at 0x1000010 + 0x10 (ROM\_APITABLE[4]), which is the the GPIO table. And the API it calls is ROM\_GPIOPinRead() (ROM\_GPIOTABLE[11]). Because all the ROM API call sites have the same pattern, it makes firmware's reverse engineering work much easier.  Calling the API is merely locating the function address from the two-level tables and jumps to it, and the parameters are passed in through registers. There is no privilege change when calling into the APIs, and the firmware code all runs in the system mode.
+\autoref{fig:romapiexample} shows a typical code snippet that calls a ROM API. The second-level table is at 0x1000010 + 0x10 (\texttt{ROM\_APITABLE[4]}), which is the the GPIO table. And the API it calls is \texttt{ROM\_GPIOPinRead()} (\texttt{ROM\_GPIOTABLE[11]}). Because all the ROM API call sites have the same pattern, it makes firmware's reverse engineering work much easier.  Calling the API is merely locating the function address from the two-level tables and jumps to it, and the parameters are passed in through registers. There is no privilege change when calling into the APIs, and the firmware code all runs in the system mode.
 
 
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/romapiexample2}
 	\centering
-	\caption{A code snippet that calls ROM\_GPIOPinRead(). The parameters are passed through registers. In this case, the  ROM\_GPIOPinRead() has two parameters. R0 contains the GPIO port address, and R1 indicates the pins to operate.}
+	\caption{A code snippet that calls \texttt{ROM\_GPIOPinRead()}. The parameters are passed through registers. In this case, the  \texttt{ROM\_GPIOPinRead()} has two parameters. R0 contains the GPIO port address, and R1 indicates the pins to operate.}
 	\label{fig:romapiexample}
 \end{figure}
 
@@ -270,9 +271,9 @@ Each I2C slave device on the same bus has a unique 7-bit address. In our example
 	\begin{table}
 		%\begin{tabular}{|c|@{}c@{}|c|c|} 
 		\begin{tabular}{|@{}>{\centering\arraybackslash}m{0.9cm}@{}|
-				@{}>{\centering\arraybackslash}m{3.35cm}@{}|
-				@{}>{\centering\arraybackslash}m{2.35cm}@{}|
-				@{}>{\centering\arraybackslash}m{1.6cm}@{}| }
+				@{}>{\centering\arraybackslash}m{3.65cm}@{}|
+				@{}>{\centering\arraybackslash}m{2.52cm}@{}|
+				@{}>{\centering\arraybackslash}m{1.62cm}@{}| }
 			\hline
 			\makecell{CMD \\Byte} & Register & Protocol & \makecell{Power-up \\Default}\\
 			\hline
@@ -299,7 +300,7 @@ Each I2C slave device on the same bus has a unique 7-bit address. In our example
 \end{center}
 
 
-\autoref{fig:ledi2cinit} shows the pseudo-code to initialize the I2C IO expander using the ROM API. It first enables the I2C master device and sets the clock frequency to be the same as the microcontroller. After that, call ROM\_I2CMasterSlaveAddrSet() to select the target device's address, whether to send or receive data. Then call ROM\_I2CMasterDataPut() to set the data to be sent next. Only after calling ROMi\_I2CMasterControl(), the data will be sent out. In our example, two bytes with content zero are sent to Configuration Port0 and Port1. This operation sets a total of 16 pins as output mode.
+\autoref{fig:ledi2cinit} shows the pseudo-code to initialize the I2C IO expander using the ROM API. It first enables the I2C master device and sets the clock frequency to be the same as the microcontroller. After that, call \texttt{ROM\_I2CMasterSlaveAddrSet()} to select the target device's address, whether to send or receive data. Then call \texttt{ROM\_I2CMasterDataPut()} to set the data to be sent next. Only after calling \texttt{ROM\_I2CMasterControl()}, the data will be sent out. In our example, two bytes with content zero are sent to Configuration Port0 and Port1. This operation sets a total of 16 pins as output mode.
 
 
 
@@ -318,7 +319,7 @@ After initialization, \autoref{fig:ledi2csend} shows how to control the LEDs. Fo
 \begin{figure}[th]
 	\includegraphics[width=0.47\textwidth]{figures/ledi2csend}
 	\centering
-	\caption{Each pin in the Output register controls an LED light separately, so two 0xFF bytes can control 16 LEDs. If we only want to control a few of the LED lights in one register, we can call ROM\_I2CMasterControl() with parameter I2C\_MASTER\_CMD\_SINGLE\_SEND.}
+	\caption{Each pin in the Output register controls an LED light separately, so two 0xFF bytes can control 16 LEDs. If we only want to control a few of the LED lights in one register, we can call \texttt{ROM\_I2CMasterControl() }with parameter \texttt{I2C\_MASTER\_CMD\_SINGLE\_SEND}.}
 	\label{fig:ledi2csend}
 \end{figure}
 
