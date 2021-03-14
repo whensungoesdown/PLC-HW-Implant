@@ -47,14 +47,14 @@ The major challenge in attacking PLCs is not having enough information about the
 Moreover, we also ported a driver to read an on-board SPI flash chip, namely, AT45DB021. The source code is available at the github~\footnote{https://github.com/whensungoesdown/at45db021\_teensy32}.  We can identify the PLC use's internal data structures and libraries used with some reverse engineering effort.
 
 
-\textbf{\textit{JTAG Pins.}} On some boards, the JTAG pins are difficult to trace, mainly when the microcontroller chip uses BGA packaging~\cite{joshi2000mosfet} that all the balls are buried underneath. In our case, there is a 10-pin solder pad, as shown in ~\autoref{fig:board_jtag}, which is likely to be an unsoldered JTAG socket (we also own one PLC that the socket is soldered on).  To identify each pin, we use a multimeter to conduct the connectivity test. The microcontroller supports both JTAG and Serial Wire Debug (SWD)\cite{ashfieldserial} interfaces.
+\textbf{\textit{JTAG Pins.}} On some boards, the JTAG pins are difficult to trace, mainly when the microcontroller chip uses BGA packaging~\cite{joshi2000mosfet} that all the balls are buried underneath. In our case, there is a 10-pin solder pad, as shown in ~\autoref{fig:board-jtag}, which is likely to be an unsoldered JTAG socket (we also own one PLC that the socket is soldered on).  To identify each pin, we use a multimeter to conduct the connectivity test. The microcontroller supports both JTAG and Serial Wire Debug (SWD)\cite{ashfieldserial} interfaces.
 
 
 \begin{figure}[th]
-	\includegraphics[width=0.47\textwidth]{figures/board_jtag}
+	\includegraphics[width=0.47\textwidth]{figures/board-jtag}
 	\centering
 	\caption{JTAG pins on the real-time microcontroller board. A square pad with ten pins is very likely to be a JTAG interface. We need at least to have the TDI, TDO, TMS, and CLK. RST is optional.}
-	\label{fig:board_jtag}
+	\label{fig:board-jtag}
 \end{figure}
 
 
