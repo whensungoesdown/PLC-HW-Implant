@@ -1,13 +1,42 @@
 %! TEX root = 'main.tex'
-\section{Implementation and Experiment}
+\section{Implant Design and Implementation}
 \label{sec:implant-implementation}
 
+In this section, we describe the design of the hardware implant and then describe the implementation details of the implant and how it is used to control the PLC remotely.
+
+\subsection{Implant Design}
+
+Typically, the PLC has a dedicated real-time microcontroller
+that handles IO, in this case, module \textbf{D}. It runs minimal code, mainly the compiled ladder logic.  To receive ladder logic update, the communication module \textbf{C} communicates with the HMI and then updates the real-time microcontroller through the CAN bus. Therefore, to remotely control the PLC's IO, the attacker needs to control further the communication module \textbf{C}, which itself is an independent system usually with a more powerful processor. 
+
+In order to successfully have an implant that should have few physical characters such as low power consumption, small enough to fit inside the PLC shell, support all the internal protocols that we are planning to control, and have persistent connection to the attacker without detection. Therefore, we picked a Teensy board. This board is small enough to fit inside the PLC, consumes low power, supports most of the required protocols. The power module (\textbf{A}) provides stable 3 volts for other boards. Our implant can either get power directly from it or the JTAG pad. 
+
+\begin{figure}[tp!]
+	\includegraphics[width=0.47\textwidth]{figures/sim800teensy}
+	\centering
+	\caption{The power can be drawn from the JTAG pad or directly from the border connector p607. Since the JTAG pad provides the 3 volts source, we also need a DC-DC voltage step-up module that boosts from 3 volts to 5 volts. One GPIO pin from Teensy connects the PWR pin of the SIM800C board. It is used to deliver the power and reset sequence. After SIM800C initialized, the Teensy module sends AT commands through the serial port.}
+	\label{fig:sim800teensy}
+\end{figure}
+
+Lot of these ICS networks could be protected by network based anomaly detectors. Even, if an attacker manages to penetrate into the ICS network and try to control, they could be flagged by these anomaly detectors. Therefore, to avoid all these hazel, we choose to use a separate network using GSM. To achieve this, we used SIM800C, a Quad-Band GSM/GPRS module. It has strong extension capability with interfaces including UART, USB2.0, and GPIO. ~\autoref{fig:sim800teensy} shows that the SIM800C module connects with the Teensy board through a serial port. First, the Teensy board initializes the cellular module using AT command, connecting to the network. Once a text message is received, the Teensy board reads it and looks for control commands. In such a case, the command will be parsed as IO operations that eventually turn into particular memory read/write on PLC's GPIO port.
+
+%The abnormal traffic filtering mechanism~\cite{kim2016abnormal} may be deployed to protect ICS networks. Even though we successfully controllers all the embedded system in the PLC and penetrates the network traffic monitors, we still have to face the challenge that a critical infrastructure may run on an isolated local network. Therefore, we choose to use a separate network using GSM.
+
+%The SIM800C is a Quad-Band GSM/GPRS module. It has strong extension capability with interfaces including UART, USB2.0, and GPIO. ~\autoref{fig:sim800teensy} shows that the SIM800C module connects with the Teensy board through a serial port. First, the Teensy board initializes the cellular module using AT command, connecting to the network. Once a text message is received, the Teensy board reads it and looks for control commands. In such a case, the command will be parsed as IO operations that eventually turn into particular memory read/write on PLC's GPIO port.
+
+
+\subsection{Implant Implementation}
 
 This section provides the implementation details and discusses the issues that we encountered during the development. 
 %We also give some experiments to prepare for attacks in different scenarios, which are not used in the current prototype.
 
+\paragraph{\textbf{\texttt{Control Output}}} After knowing how to control GPIO, we can directly control the output of the PLC. There are 16 inputs and 16 outputs on the IO connector. Through reverse engineering, we know the GPIO port corresponding to the IO.  That are, GPIO port E (0x4005C000) GPIO port F (0x4005D000) for inputs, and GPIO port G (0x4005E000), GPIO port H (0x4005F000) for outputs. Intuitively, each GPIO bit corresponds to a pin on the connector. One indicates the high voltage, which is the field power voltage; zero dictates the low voltage (8 volts).
 
-\textbf{\texttt{Read/Write Memory.}} We briefly introduced the JTAG protocol in the background (~\autoref{sec:implant-background}) earlier. Our driver sends instructions to the IR and reads the returned result according to the JTAG state machine. Nevertheless, we need to know how to operate ARM's CoreSight components for this particular hardware backdoor prototype. We choose the JTAG interface instead of SW (Serial Wire), so the corresponding debug port is JTAG-DP or SWJ-DP, as shown in~\autoref{fig:dap}.
+To conduct a stealthy attack, we want to change the output secretly. For example, we want to keep the LEDs in their original state and the host (HMI) not to find any abnormalities. %To achieve this goal, we need to leverage the firmware itself. 
+The PLC periodically scans the inputs, runs ladder logic, and updates outputs.  It is trivial to find the ladder logic binary by following the timer handler routine. There are a few local variables that control how the ladder logic behaves. For example, one local variable determines if any logic state has changed. If so, the corresponded GPIO pin will be updated according to the ladder logic. We modify this local variable so that everything looks up to date. In the meantime,  we can change the outputs without triggering any alarms.
+
+
+\paragraph{\textbf{\texttt{Read/Write Memory}}} We introduced the JTAG protocol in ~\autoref{sec:implant-background}. \name sends instructions to the IR and reads the returned result according to the JTAG state machine. %Nevertheless, we need to know how to operate ARM's CoreSight components for this particular hardware backdoor prototype. We choose the JTAG interface instead of SW (Serial Wire).%, so the corresponding debug port is JTAG-DP or SWJ-DP, as shown in~\autoref{fig:dap}.
 
 \begin{center}
 	\begin{table}
@@ -37,19 +66,19 @@ This section provides the implementation details and discusses the issues that w
 
 
 
-Through DPACC and APACC registers, the debugger can access resources provided by other access ports (AP).  As mentioned earlier, an access port provides the interface between the debug port interface and one or more debug components present within the system. There are two kinds of access ports: Memory Access Ports (MEM-AP) and JTAG Access Ports (JTAG-AP), and MEM-AP is designed for connects to memory bus system with address and data controls.  Since our backdoor wants to access memory and GPIO, we need to access either AHB-AP or the MEM-AP, which handled the differences between the underlying bus.
+Through DPACC and APACC registers, the debugger can access resources provided by other access ports (AP).  As mentioned earlier, an access port provides the interface between the debug port interface and one or more debug components present within the system. There are two kinds of access ports: Memory Access Ports (MEM-AP) and JTAG Access Ports (JTAG-AP), and MEM-AP is designed for connects to memory bus system with address and data controls.  Since \name wants to access memory and GPIO, we need to access either AHB-AP or the MEM-AP, which handled the differences between the underlying bus.
 
 
 
-\begin{figure}[ht]
-	\includegraphics[width=0.47\textwidth]{figures/dpapacc}
-	\centering
-	\caption{Both of the two registers are 35 bits long and can be scanned in/out through the JTAG protocol with IR instruction b1010 and b1010, respectively. RnW takes one bit, and zero indicates a write. A[3:2] selects the register within a bank.}
-	\label{fig:dpapacc}
-\end{figure}
-
-
-~\autoref{fig:dpapacc} shows that both DPACC and APACC have the same structure, and they can be scan in/out through the JTAG state machine with the specific IR instruction value. The lowest bit indicates whether to read or write DP/AP, where zero means write.
+%\begin{figure}[ht]
+%	\includegraphics[width=0.47\textwidth]{figures/dpapacc}
+%	\centering
+%	\caption{Both of the two registers are 35 bits long and can be scanned in/out through the JTAG protocol with IR instruction b1010 and b1010, respectively. RnW takes one bit, and zero indicates a write. A[3:2] selects the register within a bank.}
+%	\label{fig:dpapacc}
+%\end{figure}
+%
+%
+%~\autoref{fig:dpapacc} shows that both DPACC and APACC have the same structure, and they can be scan in/out through the JTAG state machine with the specific IR instruction value. The lowest bit indicates whether to read or write DP/AP, where zero means write.
 
  According to ARM Debug Interface Architecture Specification v5.0 to v5.2, every bank has four registers, and A[3:2], the two bits are used to select the register from the bank. The DP only has one bank, and the MEM-AP has 16 banks, as listed in~\autoref{tab:dpreg} and ~\autoref{tab:memapreg}, respectively. To select the AP's bank, we also need to write the bank address into the DP's SELECT register.
 

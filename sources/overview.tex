@@ -11,7 +11,7 @@
 
 In this paper, we present \name, an APT using a hardware implant that is used by an attacker to perform co-ordinated distributed attacks on critical infrastructure such as power grid. To achieve this, we reversed engineered a PLC and developed a prototype of hardware implant and showed that such kind of attacks can be performed even without the help of state sponsored attack groups. \name hijacks the data lines on the PLC and modifies them based on the command received by the attacker. Since the attacker can send such signals remotely, they can control various PLCs at different locations simulataneoulsy to perform an co-ordinated distributed attack on the entire power grid.
 
-\begin{figure*}[ht]
+\begin{figure*}[tp!]
 	\includegraphics[width=\textwidth]{figures/bigpic}
 	\centering
 	\caption{In the PLC manufacturer factory or during the product shipment, numerous employees can access the PLCs. The hardware backdoor installation should follow specific procedures to be efficiently accomplished without advanced software knowledge. The hardware backdoor can communicate with the attacker through the GSM network. Therefore it does not need to join the ethernet used by the ICS system.}
