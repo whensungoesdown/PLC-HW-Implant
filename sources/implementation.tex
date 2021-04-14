@@ -7,7 +7,9 @@ In this section, we describe the design of the hardware implant and then describ
 \subsection{Implant Design}
 
 Typically, the PLC has a dedicated real-time microcontroller
-that handles IO, in this case, module \textbf{D}. It runs minimal code, mainly the compiled ladder logic.  To receive ladder logic update, the communication module \textbf{C} communicates with the HMI and then updates the real-time microcontroller through the CAN bus. Therefore, to remotely control the PLC's IO, the attacker needs to control further the communication module \textbf{C}, which itself is an independent system usually with a more powerful processor. 
+that handles IO, in this case, module \textbf{C}. It runs minimal code, mainly the compiled ladder logic.  To receive ladder logic update, the communication module \textbf{B} communicates with the HMI and then updates the real-time microcontroller through the CAN bus. Therefore, to remotely control the PLC's IO, the attacker needs to control the communication module \textbf{C}.
+
+%Therefore, to remotely control the PLC's IO, the attacker needs to control further the communication module \textbf{C}, which itself is an independent system usually with a more powerful processor. 
 
 In order to successfully have an implant that should have few physical characters such as low power consumption, small enough to fit inside the PLC shell, support all the internal protocols that we are planning to control, and have persistent connection to the attacker without detection. Therefore, we picked a Teensy board. This board is small enough to fit inside the PLC, consumes low power, supports most of the required protocols. The power module (\textbf{A}) provides stable 3 volts for other boards. Our implant can either get power directly from it or the JTAG pad. 
 
@@ -141,7 +143,7 @@ Through DPACC and APACC registers, the debugger can access resources provided by
 
 
 
-To read and write memory, we need to use the internal registers provided by the MEM-AP. Specifically, we need to sue CSW, TAR, DRW, and others. Since these registers are in the MEM-AP's bank 0, we must first use DPACC to select it. Take writing memory as an example. Next, we need to write the destination address to TAR and then write the value to DRW. ~\autoref{fig:memapwrite} shows a pseudo-code for writing memory.
+To read and write memory, we need to use the internal registers provided by the MEM-AP. Specifically, we need to use CSW, TAR, DRW, and others. Since these registers are in the MEM-AP's bank 0, we must first use DPACC to select it. Take writing memory as an example. Next, we need to write the destination address to TAR and then write the value to DRW. ~\autoref{fig:memapwrite} shows a pseudo-code for writing memory.
 
 
 \begin{figure}[ht]
