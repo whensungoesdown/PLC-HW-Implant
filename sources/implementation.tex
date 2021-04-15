@@ -141,7 +141,7 @@ The JTAG debug port has several interfacing registers, as shown in~\autoref{tab:
 
 
 
-To read and write memory, we need to use the internal registers provided by the MEM-AP. Specifically, we need to use CSW, TAR, DRW, and others. Since these registers are in the MEM-AP's bank 0, we must first use DPACC to select it. Take writing memory as an example. Next, we need to write the destination address to TAR and then write the value to DRW. ~\autoref{fig:memapwrite} shows a pseudo-code for writing memory.
+To read and write memory, we need to use the internal registers provided by the MEM-AP. Specifically, we need to use CSW, TAR, DRW, and others. Since these registers are in the MEM-AP's bank 0, we must first use DPACC to select it. Take writing memory as an example. Next, we need to write the destination address to TAR and then write the value to DRW. ~\autoref{fig:memapwrite} shows a pseudo-code for writing memory. More details about the MEM-AP registers is given in~\autoref{sec:implant-appendix}. 
 
 
 \begin{figure}[ht]
@@ -153,13 +153,12 @@ To read and write memory, we need to use the internal registers provided by the 
 
 
 
-
-\textbf{\texttt{Send/Receive SMS Message.}} SIM800C provides a serial port as the interface to receive AT commands. When \name is started, we use the AT+CMGF command to set the GSM chip in SMS Text Mode. Then we use the AT+CNMI command to set how to notify when new messages come. After that, the Teensy board keeps checking the serial port for new messages every second. If there is one, read the content and parse if it is a pre-defined attack command.
+\paragraph{\textbf{\texttt{Send/Receive SMS Message.}}} SIM800C provides a serial port as the interface to receive AT commands. When \name is started, we use the AT+CMGF command to set the GSM chip in SMS Text Mode. Then we use the AT+CNMI command to set how to notify when new messages come. After that, the Teensy board keeps checking the serial port for new messages every second. If there is one, read the content and parse if it is a pre-defined attack command.
 
 To send out a message, use the AT+CMGS command to set the destination phone number and then send the text message to the serial port. 
 
 
-\textbf{\texttt{Intercepting SPI Data.}} As mentioned earlier, we can directly control the power switch chips to change the output or modify the transmission data by intercepting the bus on the circuit board, mainly low-speed buses such as SPI. For example, if we change a pin from zero to one, we need to connect it to the high voltage (3.3v) power supply to override the original signal. Similarly, we ground it to force it a zero. 
+\paragraph{\textbf{\texttt{Intercepting SPI Data.}}} As mentioned earlier, we can directly control the power switch chips to change the output or modify the transmission data by intercepting the bus on the circuit board, mainly low-speed buses such as SPI. For example, if we change a pin from zero to one, we need to connect it to the high voltage (3.3v) power supply to override the original signal. Similarly, we ground it to force it a zero. 
 However, these operations need to consider the IC's interface.
 
 The pins of the SPI flash chip use a push-pull configuration rather than an open drain. The output pins can actively create their own logical high and low states instead of relying on pull-up resistors to generate a default state. However, in this way, we must add an appropriate current-limiting resistor when forcing the signal to the ground or power supply to avoid short circuits.
