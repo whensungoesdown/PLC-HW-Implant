@@ -66,9 +66,7 @@ The PLC periodically scans the inputs, runs ladder logic, and updates outputs.  
 	\end{table}
 \end{center}
 
-
-
-Through DPACC and APACC registers, the debugger can access resources provided by other access ports (AP).  As mentioned earlier, an access port provides the interface between the debug port interface and one or more debug components present within the system. There are two kinds of access ports: Memory Access Ports (MEM-AP) and JTAG Access Ports (JTAG-AP), and MEM-AP is designed for connects to memory bus system with address and data controls.  Since \name wants to access memory and GPIO, we need to access either AHB-AP or the MEM-AP, which handled the differences between the underlying bus.
+The JTAG debug port has several interfacing registers, as shown in~\autoref{tab:jtag-dp}. Through DPACC and APACC registers, the debugger can access resources provided by other access ports (AP).  As mentioned earlier, an access port provides the interface between the debug port interface and one or more debug components present within the system. There are two kinds of access ports: Memory Access Ports (MEM-AP) and JTAG Access Ports (JTAG-AP), and MEM-AP is designed for connects to memory bus system with address and data controls.  Since \name wants to access memory and GPIO, we need to access either AHB-AP or the MEM-AP, which handled the differences between the underlying bus.
 
 
 
