@@ -2,7 +2,7 @@
 \section{Implant Design and Implementation}
 \label{sec:implant-implementation}
 
-In this section, we describe the design of the hardware implant and then describe the implementation details of the implant and how it is used to control the PLC remotely.
+In this section, we describe the design of the hardware implant and then describe the implant's implementation details and how it is used to control the PLC remotely.
 
 \subsection{Implant Design}
 
@@ -11,7 +11,7 @@ that handles IO, in this case, module \textbf{C}. It runs minimal code, mainly t
 
 %Therefore, to remotely control the PLC's IO, the attacker needs to control further the communication module \textbf{C}, which itself is an independent system usually with a more powerful processor. 
 
-In order to successfully have an implant that should have few physical characters such as low power consumption, small enough to fit inside the PLC shell, support all the internal protocols that we are planning to control, and have persistent connection to the attacker without detection. Therefore, we picked a Teensy board. This board is small enough to fit inside the PLC, consumes low power, supports most of the required protocols. The power module (\textbf{A}) provides stable 3 volts for other boards. Our implant can either get power directly from it or the JTAG pad. 
+To successfully have an implant with few physical characters such as low power consumption, small enough to fit inside the PLC shell, support all the internal protocols that we are planning to control, and have a persistent connection to the attacker without detection. Therefore, we picked a Teensy board. This board is small enough to fit inside the PLC, consumes low power, supports most of the required protocols. The power module (\textbf{A}) provides stable 3 volts for other boards. Our implant can either get power directly from it or the JTAG pad. 
 
 \begin{figure}[tp!]
 	\includegraphics[width=0.47\textwidth]{figures/sim800teensy}
@@ -20,7 +20,8 @@ In order to successfully have an implant that should have few physical character
 	\label{fig:sim800teensy}
 \end{figure}
 
-Lot of these ICS networks could be protected by network based anomaly detectors. Even, if an attacker manages to penetrate into the ICS network and try to control, they could be flagged by these anomaly detectors. Therefore, to avoid all these hazel, we choose to use a separate network using GSM. To achieve this, we used SIM800C, a Quad-Band GSM/GPRS module. It has strong extension capability with interfaces including UART, USB2.0, and GPIO. ~\autoref{fig:sim800teensy} shows that the SIM800C module connects with the Teensy board through a serial port. First, the Teensy board initializes the cellular module using AT command, connecting to the network. Once a text message is received, the Teensy board reads it and looks for control commands. In such a case, the command will be parsed as IO operations that eventually turn into particular memory read/write on PLC's GPIO port.
+A lot of these ICS networks could be protected by network-based anomaly detectors. Even if an attacker manages to penetrate the ICS network and control it, they could be flagged by these anomaly detectors. Therefore, to avoid all these hazel, we choose to use a separate network using GSM. To achieve this, we used SIM800C, a Quad-Band GSM/GPRS module. It has strong extension capability with interfaces including UART, USB2.0, and GPIO. ~\autoref{fig:sim800teensy} shows that the SIM800C module connects with the Teensy board through a serial port. First, the Teensy board initializes the cellular module using AT command, connecting to the network. Once a text message is received, the Teensy board reads it and looks for control commands. In such a case, the command will be parsed as IO operations that eventually turn into particular memory read/write on PLC's GPIO port.
+
 
 %The abnormal traffic filtering mechanism~\cite{kim2016abnormal} may be deployed to protect ICS networks. Even though we successfully controllers all the embedded system in the PLC and penetrates the network traffic monitors, we still have to face the challenge that a critical infrastructure may run on an isolated local network. Therefore, we choose to use a separate network using GSM.
 
@@ -141,7 +142,7 @@ The JTAG debug port has several interfacing registers, as shown in~\autoref{tab:
 
 
 
-To read and write memory, we need to use the internal registers provided by the MEM-AP. Specifically, we need to use CSW, TAR, DRW, and others. Since these registers are in the MEM-AP's bank 0, we must first use DPACC to select it. Take writing memory as an example. Next, we need to write the destination address to TAR and then write the value to DRW. ~\autoref{fig:memapwrite} shows a pseudo-code for writing memory. More details about the MEM-AP registers is given in~\autoref{sec:implant-appendix}. 
+To read and write memory, we need to use the internal registers provided by the MEM-AP. Specifically, we need to use CSW, TAR, DRW, and others. Since these registers are in the MEM-AP's bank 0, we must first use DPACC to select it. Take writing memory as an example. Next, we need to write the destination address to TAR and then write the value to DRW. ~\autoref{fig:memapwrite} shows a pseudo-code for writing memory. More details about the MEM-AP registers are given in~\autoref{sec:implant-appendix}. 
 
 
 \begin{figure}[ht]

@@ -2,17 +2,17 @@
 \section{Reverse Engineering of PLC}
 \label{sec:implant-design}
 
-The major challenge in making a PLC-specific hardware backdoor is that the standards used in PLCs are not that well know like that of general computer due to limited information shared by the vendors. During the development of \name, a significant amount of time was focused on the reverse engineering of the PLC to understand the modules and ICs used. This information is critical for controlling the PLC by intercepting low-speed buses. In this section, we describe the reverse engineering of the PLC's boards, then continue with the firmware reverse engineering. After the complete understanding of the PLC, we move on to explain about our design in controlling the PLC remotely in \autoref{sec:implant-design}.
+The major challenge in making a PLC-specific hardware backdoor is that the PLCs' standards are not that well-known like that of general computers due to the vendors' limited information. During the development of \name, a significant amount of time was focused on the reverse engineering of the PLC to understand the modules and ICs used. This information is critical for controlling the PLC by intercepting low-speed buses. This section describes the reverse engineering of the PLC's boards and then continues with the firmware reverse engineering. After the complete understanding of the PLC, we explain our design in controlling the PLC remotely in \autoref{sec:implant-design}.
 
 %After a basic understanding of its modules and chips, we can choose how to control it, whether through JTAG or intercepting other low-speed buses.
 
-\subsection{Reverse Engineering of Hardware}
+\subsection{Reverse Engineering Hardware}
 %The PLC we use is Allen-Bradley 1769-L18ER-BB1B/B CompactLogix 5370.
 %The reverse engineering work includes both the hardware and software. 
 
-In this section, we will describe the reverse engineering of the PLC's hardware. We will describe the different boards in PLC, on-board connectors and how the pins and ICs were identified and finally about the microcontroller present in the PLC that is used for controlling the IOs of PLC.
+In this section, we will describe the reverse engineering of the PLC's hardware. We will describe the different boards in PLC, on-board connectors, and how the pins and ICs were identified, and finally about the microcontroller present in the PLC used to control the IOs of PLC.
 
-\paragraph{\textbf{\textit{Backplanes}}} The disassembling of PLC from its shell lead to discovering several PCB module boards. These boards are commonly known as backplanes. ~\autoref{fig:modules} shows all the five backplanes present. For convenience, we named them from \textbf{A}-\textbf{E}. We name the board with the power supply as \texttt{power supply module} (\textbf{A}), the board with Ethernet socket and USB port as the \texttt{communication module} (\textbf{B}), the board that has a microcontroller and controls the 16 digital DC input pins and 16 digital DC output pins as the \texttt{real-time module} {\textbf{C}}, the board that is used as a connector for the digital IOs as \texttt{digital connector module} (\textbf{D}), and finally the board that connects the LEDs as \texttt{LED module} (\textbf{E}). We focus more on (\textbf{C}), the real-time module since this is responsible for reading input from the sensors and controlling the actuators. All these backplanes modules were identified based on the components (capacitors, coils, and the ICs) present on the boards and tracing them to the peripherals. 
+\paragraph{\textbf{\textit{Backplanes}}} The disassembling of PLC from its shell lead to discovering several PCB module boards. These boards are commonly known as backplanes. ~\autoref{fig:modules} shows all the five backplanes present. For convenience, we named them from \textbf{A}-\textbf{E}. We name the board with the power supply as \texttt{power supply module} (\textbf{A}), the board with Ethernet socket and USB port as the \texttt{communication module} (\textbf{B}), the board that has a microcontroller and controls the 16 digital DC input pins and 16 digital DC output pins as the \texttt{real-time module} {\textbf{C}}, the board that is used as a connector for the digital IOs as \texttt{digital connector module} (\textbf{D}), and finally the board that connects the LEDs as \texttt{LED module} (\textbf{E}). We focus more on (\textbf{C}) the real-time module since this is responsible for reading input from the sensors and controlling the actuators. All these backplane modules were identified based on the components (capacitors, coils, and the ICs) present on the boards and tracing them to the peripherals. 
 
 \begin{figure}[tp!]
 	\includegraphics[width=0.47\textwidth]{figures/modules}
@@ -28,12 +28,12 @@ The \texttt{communication module} (\textbf{B}) includes a CPU, DRAM, and other p
 
 The digital IO sockets on the \texttt{digital connector module} (\textbf{D}) are connected to the \texttt{real-time module} (\textbf{B}). The IO goes through the power switches followed by optically coupled isolator chips and eventually connects to the microcontroller, as shown in~\autoref{fig:board}. There are 32 LEDs corresponds to each IO socket. The real-time module controls the LED module through the I2C protocol. 
 
-\paragraph{\textbf{\textit{Onboard Connectors}}} Once the backplanes are identified, to understand the functionality of the \texttt{real-time module}, we look deep into the components present. First, we assess the functionality of each component on board of PLC based on the on-board ICs. Then, we use a multimeter to conduct the connectivity test for wire tracing. The purpose of this is to find the interconnections between chips and between boards. The conductivity test leads to identification of microcontroller pins that are connected to other ICs on the board. We found different pins such as JTAG, SPI, I2C, and CAN through this method. %The \texttt{real-time module} is a two-side PCB, and the wire connectors that pass through the board are well exposed, as seen in~\autoref{fig:ssi0}. 
+\paragraph{\textbf{\textit{Onboard Connectors}}} Once the backplanes are identified, to understand the functionality of the \texttt{real-time module}, we look deep into the components present. First, we assess the functionality of each component on board of PLC based on the on-board ICs. Then, we use a multimeter to conduct the connectivity test for wire tracing. The purpose of this is to find the interconnections between chips and between boards. The conductivity test leads to the identification of microcontroller pins that are connected to other ICs on the board. We found different pins such as JTAG, SPI, I2C, and CAN through this method. %The \texttt{real-time module} is a two-side PCB, and the wire connectors that pass through the board are well exposed, as seen in~\autoref{fig:ssi0}. 
 
 \begin{figure}[tp!]
 	\includegraphics[width=0.47\textwidth]{figures/board3}
 	\centering
-	\caption{The real-time module reads the input signals, runs the ladder logic, and then drives the output signal according to the result. Therefore this module needs to be connected to all other modules. In addition to the microcontroller and the flash memory, there are power regulators and IO chips on this module. The optically coupled isolators prevent high voltages from affecting the microcontroller when receiving the signal, and the power switches provide the electrical connection between the output pin and the voltage source.}
+	\caption{The real-time module reads the input signals, runs the ladder logic, and then drives the output signal according to the result. Therefore this module needs to be connected to all other modules. There are power regulators and IO chips on this module in addition to the microcontroller and the flash memory. The optically coupled isolators prevent high voltages from affecting the microcontroller when receiving the signal, and the power switches provide the electrical connection between the output pin and the voltage source.}
 	\label{fig:board}
 \end{figure}
 
@@ -48,11 +48,13 @@ There are several connectors on the real-time module \textbf{C}, as shown in ~\a
 
 By conducting the connectivity tests with a multimeter, we perceive some pins' function in P607 as shown in~\autoref{fig:p607}. The I2C bus and CAN bus passes through this connector. In this way, both the communication module and the real-time module are connected to the CAN bus connector in the bottom right corner in ~\autoref{fig:board}. These two modules can not only control the external CAN bus device, but they can also communicate via the CAN bus between these modules. However, the communication module has a higher priority. Setting pin29 on the P607 connector can block the transmission of the signal on pin21, the CAN bus's RxD signal line. On the microcontroller side, the master device CAN0 uses the PA6 and PA7 pins. 
 
-\paragraph{\textbf{\textit{Microcontroller}}} The TI Stellaris LM3S2793 SoC has an ARM Cortex-M3 processor core that operates at 80 MHz. It contains 64 KB SRAM and 128 KB flash. The internal ROM is preprogrammed with Stellaris Peripheral Driver Library (DriverLib) to drive the on-chip peripheral devices. ~\autoref{tab:memorymap} shows the memory map. We dump the firmware from the microcontroller and flash chip for reverse-engineering analysis.
+\paragraph{\textbf{\textit{Microcontroller}}} The TI Stellaris LM3S2793 SoC has an ARM Cortex-M3 processor core that operates at 80 MHz. It contains 64 KB SRAM and 128 KB flash. And the internal ROM is preprogrammed with Stellaris Peripheral Driver Library (DriverLib) to drive the on-chip peripheral devices. In ~\autoref{tab:memorymap}, it shows the memory map. We dump the firmware from the microcontroller and flash chip for reverse-engineering analysis.
+
 
 \subsection{Reverse Engineering of Firmware}
 
-In this section, we will describe the reverse engineering of the firmware. We will describe the startup of the PLC, the dedicated peripheral driver library that is responsible for the control of GPIOs, SPI, and I2C. Then we describe the GPIO and SPI flash memory followed by front panel LED.
+In this section, we will describe the reverse engineering of the firmware. We will describe the PLC startup, the dedicated peripheral driver library that is responsible for the control of GPIOs, SPI, and I2C. Then we describe the GPIO and SPI flash memory followed by the front panel LED.
+
 
 \begin{center}
 	\begin{table}
@@ -132,7 +134,7 @@ Right after the flash boot loader starts, it copies itself to SRAM, starting at 
 
 As mentioned earlier, on system reset, the vector table is at the fixed address 0x00000000. However, it can be relocated by writing the vector table offset register (VTOR:0xE000ED08). Changing the vector table indicates a complete change of the system's behavior because all the interrupt handlers are new, and they interpret how the system behaves regarding peripheral device's requests. The bootloader sets the vector table to 0x20000000 and jumps back to SRAM to continue execution.
 
-\paragraph{\textbf{\textit{Stellaris Peripheral Driver Library}}} The Drivelib~\cite{lm3s2793rom} is a set of APIs utilized to control the on-chip peripheral devices. It is provided in ROM code and placed in a fixed location on Cortex-M3 SoCs. It helps identify the functions firmware calls. Through the fixed location of APIs and the Drivelib datasheet, the function matches with names. It is a two-level table structure. The main table is at 0x1000010, and it contains the address of the second-level table for each type of peripherals, as shown in~\autoref{tab:romtable}. ~\autoref{tab:gpiotable} shows the second-level table specific to GPIO.  \texttt{ROM\_GPIOTABLE} contains all the GPIO related APIs. %
+\paragraph{\textbf{\textit{Stellaris Peripheral Driver Library}}} The Drivelib~\cite{lm3s2793rom} is a set of APIs utilized to control the on-chip peripheral devices. It is provided in ROM code and placed in a fixed location on Cortex-M3 SoCs. It helps identify the functions of firmware calls. Through the fixed location of APIs and the Drivelib datasheet, the function matches with names. It is a two-level table structure. The main table is at 0x1000010, and it contains the address of the second-level table for each type of peripherals, as shown in~\autoref{tab:romtable}. ~\autoref{tab:gpiotable} shows the second-level table specific to GPIO.  \texttt{ROM\_GPIOTABLE} contains all the GPIO related APIs. %
 %
 \begin{center}
 	\begin{table}
@@ -227,7 +229,7 @@ As mentioned earlier, on system reset, the vector table is at the fixed address 
 %The IO goes through the power switches and optically coupled isolator chips and eventually connects to the microcontroller's GPIO.
 %
 %
-In the microcontroller LM3S2793, the GPIO module comprises of nine physical GPIO blocks, and each corresponds to an individual GPIO port. Depending on the microcontroller's configuration, it supports up to 67 programmable input/output pins or several pins grouped to provide peripheral functions such as I2C. The GPIO ports can be accessed either through AHB or APB bus, which matters when we access the GPIOs through JTAG. We choose the AHB-AP.
+In the microcontroller LM3S2793, the GPIO module comprises nine physical GPIO blocks, and each corresponds to an individual GPIO port. Depending on the microcontroller's configuration, it supports up to 67 programmable input/output pins or several pins grouped to provide peripheral functions such as I2C. The GPIO ports can be accessed either through AHB or APB bus, which matters when we access the GPIOs through JTAG. We choose the AHB-AP.
 
 %Each GPIO port has several associated control registers, such as GPIO Digital Enable (GPIODEN), GPIO Alternate Function Select (GPIOAFSEL), GPIO Port Control (GPIOPCTL), and GPIO Data Control registers. All GPIO pins are configured as individual input/output pins and tri-stated by default. The GPIO Direction (GPIODIR) register configures each GPIO pin as an input or output, and we do not change it. 
 To change the inputs and outputs, we primarily operate on the GPIO Data (GPIODATA) register that modifies individual bits in GPIO ports. The way to control the GPIO data is not straightforward.  Different microcontrollers adopt different operating methods. %For example, the GPIO port may take Output Data Register (ODR), Bit Reset Register (BRR), Bit Set/Reset Register (BSRR)~\cite{cottle2001programmable}. 
@@ -254,7 +256,7 @@ For example, GPIO Port A (AHB) is mapped at 0x40058000, and it controls 8 GPIO p
 The same applies to reading. Only the corresponding bit in the bitmask will be read. Otherwise, it reads zero. For example, to read the four high bits from GPIO Port A, the address with bitmask should be 0x40058000 + 0x3C0, and it reads 0xA0, as shown in~\autoref{fig:gpioread}.
 
 
-\paragraph{\textbf{\textit{AT45DB021E SPI Flash Memory}}}  It is quite noticeable that right next to the LM3S2793 microcontroller,  there is an 8-pin flash chip, which is an Adesto 45DB021E 2-Mbit SPI flash memory. It connects with the PLC's SSI0 (Synchronous Serial Interface), as shown in ~\autoref{fig:ssi0}.
+\paragraph{\textbf{\textit{AT45DB021E SPI Flash Memory}}}  It is pretty noticeable that right next to the LM3S2793 microcontroller,  there is an 8-pin flash chip, which is an Adesto 45DB021E 2-Mbit SPI flash memory. It connects with the PLC's SSI0 (Synchronous Serial Interface), as shown in ~\autoref{fig:ssi0}.
 
 \begin{figure}[tp!]
 	\includegraphics[width=0.47\textwidth]{figures/ssi0}
@@ -308,7 +310,7 @@ There are two 24-pin PD9535 chips (Remote 16-bit I2C/SMBus, Low-Power I/O Expand
 %\end{center}
 
 Each I2C slave device on the same bus has a unique 7-bit address. In our case, the addresses of the two PD9593 chips are 0x20 and 0x21. %~\autoref{tab:i2ccommand} shows that the chip has eight internal registers. As mentioned in~\autoref{sec:implant-background}, 
-The master device successfully sends the address byte followed by a byte to select the internal register. 
+The master device successfully sends the address byte, followed by a byte to select the internal register. 
 
 
 %Among these internal registers, the configuration register is responsible for controlling the directions of the IO pins. Zero means the corresponding pin is output. Because the PLC uses PD9593 to control the LED, all the pins are outputs. The input port registers reflect the pins' incoming logic levels, regardless of whether the pin is defined as an input or an output by the configuration register. Nevertheless, we do not need to read the input registers.
