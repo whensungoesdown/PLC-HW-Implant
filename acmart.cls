@@ -1507,7 +1507,7 @@
       #1}}{\ClassWarning{\@classname}{The parameter authorsperrow must be
       numerical. Ignoring the input #1}\gdef\@ACM@authorsperrow{0}}}
 \def\settopmatter#1{\setkeys{@ACM@topmatter@}{#1}}
-\settopmatter{printccs=true, printacmref=true}
+\settopmatter{printccs=true, printacmref=false}
 \if@ACM@manuscript
   \settopmatter{printfolios=true}
 \else

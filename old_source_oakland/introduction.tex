@@ -34,8 +34,18 @@ Memory bus and interconnect protocols such as SPI, I2C are all potential targets
 
 %Contributions
 
-\textbf{Contributions.} To summarize, we make the following contributions in this paper: \textit{i)} We present a novel attack class on industrial control systems: a parasitical hardware implant, which is completely invisible to the ICS control system. \textit{ii)} We disassembled and reverse engineered the circuit boards of a widely deployed Allen Bradley 1769-L18ER-BBIB CompactLogix 5370 PLC. \textit{iii)} We develop a prototype implementation of \name, which is a small size device installed inside the Allen Bradley PLC. We write a JTAG driver that runs bare-metally on a microcontroller with minimal resource usage, and test and evaluate \name with multiple controlled Allen Bradley PLCs. 
+\textbf{Contributions.} To summarize, we make the following contributions in this paper:
+\begin{itemize}[leftmargin=*]
+	\item We present a novel attack class on industrial control systems: a parasitical hardware implant, which is completely invisible to the ICS control system.
+	\item We disassembled and reverse engineered the circuit boards of a widely deployed Allen Bradley 1769-L18ER-BBIB CompactLogix 5370 PLC. 
+	\item We develop a prototype implementation of \name, which is a small size device installed inside the Allen Bradley PLC. 
+	\item We write a JTAG driver that runs bare-metally on a microcontroller with minimal resource usage.
+	%\item We test and evaluate \name and conduct a synchronized attack with multiple controlled Allen Bradley PLCs. 
+	\item We test and evaluate \name with multiple controlled Allen Bradley PLCs. 
+\end{itemize}
 
-The rest of this paper is organized as the following. In~\autoref{sec:implant-background}, we provide the necessary background on programmable logic controllers and JTAG protocol. ~\autoref{sec:implant-overview} describes the objectives, adversary model and scope, challenges, and architecture of \name. ~\autoref{sec:implant-design} describes how we reverse-engineered the Allen Bradley PLC and prototyped \name with implementation details (~\autoref{sec:implant-implementation}) and evaluation (~\autoref{sec:implant-evaluation}), respectively. ~\autoref{sec:implant-relatedwork} provides a review of related work in the area of embedded system firmware attacks and mitigations. We also discuss our views on the hardware backdoor and the possible mitigation strategies in~\autoref{sec:implant-discussion}. Finally~\autoref{sec:implant-conclusions} concludes the paper.
+%Roadmap
+
+\textbf{Roadmap.} The rest of this paper is organized as the following. In~\autoref{sec:implant-background}, we provide the necessary background on programmable logic controllers and JTAG protocol. ~\autoref{sec:implant-overview} describes the objectives, adversary model and scope, challenges, and architecture of \name. ~\autoref{sec:implant-design} describes how we reverse-engineered the Allen Bradley PLC and prototyped \name with implementation details (~\autoref{sec:implant-implementation}) and evaluation (~\autoref{sec:implant-evaluation}), respectively. ~\autoref{sec:implant-relatedwork} provides a review of related work in the area of embedded system firmware attacks and mitigations. We also discuss our views on the hardware backdoor and the possible mitigation strategies in~\autoref{sec:implant-discussion}. Finally~\autoref{sec:implant-conclusions} concludes the paper.
 
 
